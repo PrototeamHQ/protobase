@@ -14,7 +14,7 @@ const organizationsOn = authOf({ organizations: { enabled: true }, personalAcces
 
 const ids = counterIds()
 const migrate = (projectDir: string, run: Partial<MigrationRun>) =>
-  runMigration({ projectDir, dir: migrationsOf(projectDir), auth: tokensOn, modules: [], database: undefined, protobaseVersion: '1.0.0', newId: ids, off: 'keep', ...run })
+  runMigration({ projectDir, dir: migrationsOf(projectDir), auth: tokensOn, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: ids, off: 'keep', ...run })
 
 describe('the default organization', () => {
   it('is required to turn organizations on, and the role of the users there already with it', async () => {
@@ -23,7 +23,7 @@ describe('the default organization', () => {
     await expect(migrate(dir, { auth: { ...organizationsOn, organizations: undefined } })).rejects.toThrow('organizations.default is not set, and organizations are on')
     const roleless = { ...organizationsOn, organizations: { ...testOrganizations, existingUsersRole: undefined } }
     await expect(migrate(dir, { auth: roleless })).rejects.toThrow('organizations.existingUsersRole is not set, and organizations turn on')
-    expect(await checkMigrations(dir, migrationsOf(dir), roleless, [])).toEqual(['organizations.existingUsersRole is not set, and organizations turn on: name the app role every user there already holds in the default organization'])
+    expect(await checkMigrations(dir, migrationsOf(dir), roleless, {})).toEqual(['organizations.existingUsersRole is not set, and organizations turn on: name the app role every user there already holds in the default organization'])
   })
 
   it('turning organizations on, is recorded in the snapshot, and the tokens are filled from the .after.sql', async () => {

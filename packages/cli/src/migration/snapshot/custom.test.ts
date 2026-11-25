@@ -24,7 +24,7 @@ describe('protobase migration --custom', () => {
     expect(text).toContain('\n-- protobase:custom\n')
     expect(text).not.toContain('\n-- protobase:additive\n')
     expect((await readSnapshot(dir))!.endsAt).toEqual({ file: '002_rename_sessions.sql', id: 'custom-id' })
-    expect(await checkMigrations(dir, migrationsOf(dir), renamed, [])).toEqual([
+    expect(await checkMigrations(dir, migrationsOf(dir), renamed, {})).toEqual([
       'the auth store\'s modules.auth.session.name is "session" in the snapshot and "sessions" now',
       'the auth store\'s modules.auth.session.indexes.session_user_id_idx is "session_user_id_idx" in the snapshot and "sessions_user_id_idx" now',
       '002_rename_sessions.sql is written by hand and says neither `-- protobase:additive` nor `-- protobase:breaks-older-code`: put the one that holds among its `-- protobase:` lines',
@@ -36,6 +36,6 @@ describe('protobase migration --custom', () => {
     await migrate(dir, authOf())
     expect(await readFile(await custom(dir, true), 'utf8')).toContain('\n-- protobase:custom\n-- protobase:breaks-older-code\n')
     expect((await readSnapshot(dir))!.model.auth!.modules.auth!.tables.session!.name).toBe('sessions')
-    expect(await checkMigrations(dir, migrationsOf(dir), renamed, [])).toEqual([])
+    expect(await checkMigrations(dir, migrationsOf(dir), renamed, {})).toEqual([])
   })
 })

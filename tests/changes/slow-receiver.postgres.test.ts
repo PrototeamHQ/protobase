@@ -4,7 +4,7 @@ import type { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { readEventStream } from '@protobase/schema/internal'
-import { changesMigration, createAdmin, startJobs, subscription, type JobsRuntime } from '@protobase/server'
+import { captureSchemaSql, createAdmin, startJobs, subscription, type JobsRuntime } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -51,7 +51,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('a slow webhook receiver
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     await pg.exec('create table orders (id integer generated always as identity primary key, status text not null)')
-    await pg.exec((await changesMigration(db, [orders.toModel()]))!)
+    await pg.exec(captureSchemaSql([orders.toModel()]))
     receiver = await startHangingReceiver()
     vi.spyOn(console, 'log').mockImplementation((line: string) => void logged.push(line))
     admin = createAdmin({

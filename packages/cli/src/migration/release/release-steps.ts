@@ -1,5 +1,5 @@
 import { authSchemaMigration } from '@protobase/server'
-import { moduleDifference, schemaModules } from '@protobase/server/internal'
+import { moduleDifference, schemaModules, targetIds } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
 import type { MigrationProject } from '../migration-project'
 import { migrationParts } from '../parts'
@@ -19,13 +19,18 @@ export type ReleaseStep = { name: string; title: string; sql: string; breaks?: s
 export const releaseSteps = async (project: MigrationProject) => {
   const auth = project.auth && (await authSchemaMigration(project.auth))
   const steps: ReleaseStep[] = auth ? [{ name: 'auth', title: authMigrationTitle, sql: auth }] : []
-  for (const id of project.modules) {
-    const { sql, breaks } = moduleDifference(schemaModules[id], await schemaModules[id].read(project.db))
-    if (sql !== undefined) steps.push({ name: id, title: schemaModules[id].title, sql, breaks })
-  }
+  const parts: (ReleaseStep & { beforeModules?: boolean })[] = []
   for (const part of migrationParts(project)) {
     const sql = await part.sql({ authWritten: Boolean(auth) })
-    if (sql !== undefined) steps.push({ name: part.name, title: part.title, sql })
+    if (sql !== undefined) parts.push({ name: part.name, title: part.title, sql, ...(part.beforeModules && { beforeModules: true }) })
   }
-  return steps
+  const modules: ReleaseStep[] = []
+  for (const id of targetIds(project.modules)) {
+    const input = project.modules[id]!
+    const { sql, breaks } = moduleDifference(schemaModules[id], input, await schemaModules[id].read(project.db, input))
+    if (sql !== undefined) modules.push({ name: id, title: schemaModules[id].title, sql, breaks })
+  }
+  // In the order `protobase migration` writes them: the parts that make tables the modules' triggers go on first.
+  const step = ({ beforeModules: _, ...rest }: (typeof parts)[number]): ReleaseStep => rest
+  return [...steps, ...parts.filter(({ beforeModules }) => beforeModules).map(step), ...modules, ...parts.filter(({ beforeModules }) => !beforeModules).map(step)]
 }

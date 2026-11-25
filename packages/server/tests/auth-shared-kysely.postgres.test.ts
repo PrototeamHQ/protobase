@@ -145,7 +145,7 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
 
   it("reads the record of migrations on plain connections, past the app's plugins", async () => {
     const app = await serve()
-    await expect(checkMigrationRecord(plainStoreDb(app.auth), runtimeModel(app.auth, []), '0.0.0')).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
+    await expect(checkMigrationRecord(plainStoreDb(app.auth), runtimeModel(app.auth, {}), '0.0.0')).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
     expect(app.seen.has('history')).toBe(false)
   })
 

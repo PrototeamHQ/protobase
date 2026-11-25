@@ -41,6 +41,6 @@ describe('two branches that each write a migration', () => {
     const file = await migrate(dir, authOf(), counterIds(), '1.1.0')
     expect(path.basename(file!)).toBe('003_auth.sql')
     expect((await readdir(migrationsOf(dir))).sort()).toEqual(['001_auth.sql', '002_orders.sql', '003_auth.sql'])
-    expect(await checkMigrations(dir, migrationsOf(dir), authOf(), [])).toEqual([])
+    expect(await checkMigrations(dir, migrationsOf(dir), authOf(), {})).toEqual([])
   })
 })

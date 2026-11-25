@@ -39,26 +39,6 @@ export const capturedBy = (models: readonly ResourceModel[]) => {
   return (model: ResourceModel) => isCaptured(model) || read.has(model.name)
 }
 
-/**
- * The outbox: one row per changed row, written in the writer's transaction. `transaction` is the writer's transaction
- * id; `database_role` the role that wrote; `dispatch_after` holds back a change that the process which wrote it is
- * delivering itself. The `alter` adds the role to an outbox of an earlier version.
- */
-export const outboxSql = (schema: string) => `create table if not exists ${quoteIdent(schema)}."outbox" (
-  "id" bigint generated always as identity primary key,
-  "transaction" bigint not null,
-  "resource" text not null,
-  "op" text not null,
-  "old" jsonb,
-  "new" jsonb,
-  "changed" text[],
-  "actor" jsonb,
-  "database_role" text,
-  "dispatch_after" timestamptz not null default now(),
-  "created_at" timestamptz not null default now()
-);
-alter table ${quoteIdent(schema)}."outbox" add column if not exists "database_role" text`
-
 /** The job that turns captured changes into events and deliveries: one per writing transaction, run one at a time. */
 export const dispatchJobName = 'changes.dispatch'
 
@@ -135,6 +115,9 @@ type Field = ResourceModel['fields'][string]
 /** The columns that hold fields, each once: a relation's are the ones holding the other record's key. */
 const columnsOf = (fields: Field[]) => [...new Set(fields.flatMap((field) => field.relation?.columns ?? [field.column]))]
 
+/** The names of the two triggers on `table`: inserts and deletes, and updates. */
+export const triggerNames = (table: { name: string }) => [identifier(`${table.name}_changes`), identifier(`${table.name}_changes_update`)]
+
 /**
  * The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. The
  * fields history ignores are left out of both, and an update fires only when it changes another's columns.
@@ -143,9 +126,10 @@ export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
   const ignored = model.historyIgnore ?? []
   const fields = Object.values(model.fields).filter((field) => !ignored.includes(field.name))
   const args = [model.name, textArray(columnsOf(fields.filter((field) => !field.sensitive))), textArray(columnsOf(fields.filter((field) => field.sensitive)))]
-  const update = { name: identifier(`${model.table.name}_changes_update`), type: 1 | 16, args }
+  const [insertDelete, updateName] = triggerNames(model.table)
+  const update = { name: updateName!, type: 1 | 16, args }
   return [
-    { name: identifier(`${model.table.name}_changes`), type: 1 | 4 | 8, args },
+    { name: insertDelete!, type: 1 | 4 | 8, args },
     ignored.length > 0 ? { ...update, columns: columnsOf(fields) } : update,
   ]
 }
@@ -164,3 +148,13 @@ export const createTriggerSql = (schema: string, trigger: TriggerSpec, table: st
   const args = trigger.args.map(quoteLiteral).join(', ')
   return `create trigger ${quoteIdent(trigger.name)} ${timing} on ${table} for each row${when} execute function ${quoteIdent(schema)}."capture"(${args})`
 }
+
+/** What one resource's triggers are made from: its table as SQL, and the triggers it has. */
+export type ResourceCapture = { table: string; triggers: TriggerSpec[] }
+
+/** One resource's triggers, each dropped and made again, so a trigger of an earlier shape is replaced. */
+export const resourceCaptureSql = (schema: string, { table, triggers }: ResourceCapture) =>
+  triggers.flatMap((trigger) => [`${dropTriggerSql(trigger.name, table)};`, `${createTriggerSql(schema, trigger, table)};`]).join('\n')
+
+/** Drops the triggers a resource on `table` had. */
+export const dropCaptureSql = (table: { schema?: string; name: string }) => triggerNames(table).map((name) => `${dropTriggerSql(name, qualified(table))};`).join('\n')

@@ -100,7 +100,7 @@ describe('protobase migration', () => {
         return 'create trigger relay_session_ended;'
       },
     }
-    const withRelay = (dir: string) => runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: [], database: { url: 'postgres://unused', parts: [relay], contractions: async () => [], readModule: async () => undefined }, protobaseVersion: '1.0.0', newId: counterIds() })
+    const withRelay = (dir: string) => runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: {}, database: { url: 'postgres://unused', parts: [relay], contractions: async () => [], readModule: async () => undefined }, protobaseVersion: '1.0.0', newId: counterIds() })
 
     it("is written after the auth store's steps the same file writes", async () => {
       const dir = await newProject()

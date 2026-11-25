@@ -5,10 +5,10 @@ import type { Issue } from './check'
 import { createsFunction, createsTable, createsTrigger } from './migration-sql'
 
 /**
- * The change capture the server's startup checks for, judged from the project's migrations (`readMigrationSql`) by the
- * names `checkChanges` looks up in the catalog: `capture()` and the outbox, the history table for history, the notices
+ * The change capture the server needs, judged from the project's migrations (`readMigrationSql`) by the
+ * names the change capture module writes: `capture()` and the outbox, the history table for history, the notices
  * table for live updates, and each resource's triggers on its table. Only resources whose table a migration creates are
- * judged, each failing with the server's own message; `unjudged` are the others, whose table is the database's to show.
+ * judged, each failing with doctor's message; `unjudged` are the others, whose table is the database's to show.
  * A trigger a later migration drops, or one created in dynamic SQL, is judged only with a database.
  */
 export const captureFileIssues = (models: readonly ResourceModel[], events: EventsOptions | undefined, sql: string) => {

@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely'
 import { Hono } from 'hono'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { changesMigration, checkChanges } from '../src/changes/capture-schema'
+import { captureSchemaSql } from '../src/changes/capture-schema-sql'
 import { createAdmin } from '../src/create-admin'
 import { createErrorHandler } from '../src/error-handler'
 import { mailFeedbackRoutes } from '../src/mail/feedback/feedback-routes'
@@ -23,11 +23,9 @@ let admin: ReturnType<typeof createAdmin>
 beforeAll(async () => {
   const pg = await openSnapshotDb('jobs')
   db = new Kysely({ dialect: pg.dialect })
-  // As `protobase migration` writes them: the table, then the capture of its events, planned before the table exists.
-  const table = await mailFeedbackMigration(db)
-  const capture = await changesMigration(db, [model], undefined, [model.name])
-  await pg.exec(table!)
-  await pg.exec(capture!)
+  // As `protobase migration` writes them: the table, then the capture of its events.
+  await pg.exec((await mailFeedbackMigration(db))!)
+  await pg.exec(captureSchemaSql([model]))
   feedback = new Hono()
   feedback.onError(createErrorHandler(() => {}))
   feedback.route('/', mailFeedbackRoutes({ settings: { sesTopics: [sesBounce.TopicArn], platformSecret: 'platform secret' }, record: (report) => recordFeedback(db, report), certificates: sns.certificates, confirm: async () => {} }))
@@ -40,9 +38,8 @@ const captured = async () => (await sql<{ resource: string; type: string }>`sele
 const asAdmin = (path: string, init: RequestInit = {}) => admin.request(`/api/v1${path}`, { ...init, headers: { authorization: `Bearer ${signTestToken({ sub: 'ann', roles: ['admin'] })}`, 'content-type': 'application/json' } })
 
 describe('mail feedback', () => {
-  it('has its table and the capture of its events once the migrations ran', async () => {
+  it('has its table once the migrations ran', async () => {
     await expect(checkMailFeedbackSchema(db)).resolves.toBeUndefined()
-    await expect(checkChanges(db, [model])).resolves.toBeUndefined()
     expect(await mailFeedbackMigration(db)).toBeUndefined()
   })
 

@@ -2,7 +2,7 @@ import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import {
-  changesMigration,
+  captureSchemaSql,
   createAdmin,
   defineFunction,
   jobsSchemaSql,
@@ -60,7 +60,7 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
     db = database.db
     await database.exec(jobsSchemaSql())
     await database.exec(ddl)
-    await database.exec((await changesMigration(db, [orders.toModel()]))!)
+    await database.exec(captureSchemaSql([orders.toModel()]))
     receiver = await startReceiver()
     const log = vi.spyOn(console, 'log').mockImplementation((line: string) => void logged.push(line))
     admin = createAdmin({

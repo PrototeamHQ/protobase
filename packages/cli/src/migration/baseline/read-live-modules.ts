@@ -1,14 +1,14 @@
 import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
-import { schemaModules, type ModulesModel, type SchemaModuleId } from '@protobase/server/internal'
+import { schemaModules, targetIds, type ModuleTargets, type ModulesModel, type SchemaModuleId } from '@protobase/server/internal'
 
-/** What the database at `url` has of each schema module of `ids`, read once from its catalogue; a module it lacks is left out. */
-export const readLiveModules = async (url: string, ids: readonly SchemaModuleId[]): Promise<ModulesModel> => {
+/** What the database at `url` has of each schema module of `targets`, read once from its catalogue; a module it lacks is left out. */
+export const readLiveModules = async (url: string, targets: ModuleTargets): Promise<ModulesModel> => {
   const db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: url, max: 1 }) }) })
   try {
     const found: ModulesModel = {}
-    for (const id of ids) {
-      const model = await schemaModules[id].read(db)
+    for (const id of targetIds(targets)) {
+      const model = await schemaModules[id].read(db, targets[id]!)
       if (model) found[id] = model
     }
     return found
@@ -19,8 +19,9 @@ export const readLiveModules = async (url: string, ids: readonly SchemaModuleId[
 
 /** The lines that say what a baseline found of the schema modules, one each. */
 export const describedModules = (modules: ModulesModel) =>
-  (Object.entries(modules) as [SchemaModuleId, NonNullable<ModulesModel[SchemaModuleId]>][]).map(([id, { lastStep, replaceables }]) => {
+  (Object.entries(modules) as [SchemaModuleId, NonNullable<ModulesModel[SchemaModuleId]>][]).map(([id, { lastStep, replaceables, resources }]) => {
     const module = schemaModules[id]
     const versions = Object.entries(replaceables).map(([name, version]) => `, its ${name} at version ${version}`).join('')
-    return `-- ${module.title}: at step ${lastStep} (${module.steps[lastStep - 1]!.name})${versions}.`
+    const perResource = Object.entries(resources ?? {}).map(([name, entries]) => `, its ${name} of ${Object.keys(entries).join(', ')}`).join('')
+    return `-- ${module.title}: at step ${lastStep} (${module.steps[lastStep - 1]!.name})${versions}${perResource}.`
   })

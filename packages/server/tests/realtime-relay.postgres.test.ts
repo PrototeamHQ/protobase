@@ -11,7 +11,7 @@ import { defineRoles, f, resource } from '@protobase/schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
-import { changesMigration } from '../src/changes/capture-schema'
+import { captureSchemaSql } from '../src/changes/capture-schema-sql'
 import { withAnonymous } from '../src/anonymous'
 import { createAdmin } from '../src/create-admin'
 import { jobsSchemaSql } from '../src/jobs/jobs-module'
@@ -163,7 +163,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with
     for (const name of ['alice', 'bob', 'carol', 'dave'] as const) people[name] = String((await createUser(auth, { email: `${name}@example.com`, name, password })).id)
     await pg.exec(jobsSchemaSql())
     await pg.exec(tables)
-    await pg.exec((await changesMigration(pg.db, resources.map((entry) => entry.toModel())))!)
+    await pg.exec(captureSchemaSql(resources.map((entry) => entry.toModel())))
     await pg.exec((await relayMigration(pg.db, auth, false, channels, resources.map((entry) => entry.toModel())))!)
 
     const port = await freePort()

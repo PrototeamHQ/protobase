@@ -5,7 +5,7 @@ const trace = await traceFiles()
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
-import { changesMigration, configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { captureSchemaSql, configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import example from '../../test-support/workflow-plugin-example'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -69,7 +69,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     await pg.exec('create table invoices (id integer generated always as identity primary key, organization_id integer not null, status text not null, due_at timestamptz not null, note text)')
     await pg.exec('create index on invoices (organization_id, status); create index on invoices (due_at)')
     await pg.exec('create table rates (id integer generated always as identity primary key, percent integer not null)')
-    await pg.exec((await changesMigration(db, [invoices.toModel(), rates.toModel()]))!)
+    await pg.exec(captureSchemaSql([invoices.toModel(), rates.toModel()]))
     await pg.exec((await workflowsMigration(db, workflows))!)
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const { resources, views } = configExports({ invoices, rates, ...workflowsModule(workflows) })

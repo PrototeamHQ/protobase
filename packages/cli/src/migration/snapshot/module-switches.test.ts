@@ -14,14 +14,14 @@ const tokensOff = authOf()
 
 const ids = counterIds()
 const migrate = (projectDir: string, run: Partial<MigrationRun>) =>
-  runMigration({ projectDir, dir: migrationsOf(projectDir), auth: tokensOff, modules: [], database: undefined, protobaseVersion: '1.0.0', newId: ids, ...run })
+  runMigration({ projectDir, dir: migrationsOf(projectDir), auth: tokensOff, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: ids, ...run })
 
 describe('turning a module off', () => {
   it('refuses without a choice, naming the module and the way through', async () => {
     const dir = await newProject()
     await migrate(dir, { auth: tokensOn })
     await expect(migrate(dir, {})).rejects.toThrow('personal_access_tokens is off in the config while protobase.snapshot.json has its tables. Run `protobase migration` in a terminal to choose what becomes of its tables, or pass `--off keep`.')
-    expect(await checkMigrations(dir, migrationsOf(dir), tokensOff, [])).toEqual(['the config turns personal_access_tokens off, which the migrations lack: run `protobase migration`'])
+    expect(await checkMigrations(dir, migrationsOf(dir), tokensOff, {})).toEqual(['the config turns personal_access_tokens off, which the migrations lack: run `protobase migration`'])
   })
 
   it('keeps its tables at its step with --off keep, in a file that drops nothing', async () => {
@@ -35,7 +35,7 @@ describe('turning a module off', () => {
     expect(snapshot.decisions.modules.kept).toMatchObject([{ module: 'personal_access_tokens', step: 1, tables: { personal_access_token: { name: 'personal_access_token' } } }])
     expect(snapshot.model.auth!.modules.personal_access_tokens).toBeUndefined()
     expect(await migrate(dir, {})).toBeUndefined()
-    expect(await checkMigrations(dir, migrationsOf(dir), tokensOff, [])).toEqual([])
+    expect(await checkMigrations(dir, migrationsOf(dir), tokensOff, {})).toEqual([])
   })
 
   it("takes away not null from the columns it adds to the tables of the modules still on, but a token's organization", async () => {
@@ -86,7 +86,7 @@ describe('turning a kept module on again', () => {
     const snapshot = (await readSnapshot(dir))!
     expect(snapshot.decisions.modules.kept).toEqual([])
     expect(snapshot.model.auth!.modules.personal_access_tokens!.lastStep).toBe(1)
-    expect(await checkMigrations(dir, migrationsOf(dir), tokensOn, [])).toEqual([])
+    expect(await checkMigrations(dir, migrationsOf(dir), tokensOn, {})).toEqual([])
   })
 
   it('refuses a name the config changed while it was kept, as its tables keep theirs', async () => {

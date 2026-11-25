@@ -6,7 +6,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { changesMigration, createAdmin, createUser, jwtVerifier, startJobs, type JobsRuntime } from '@protobase/server'
+import { captureSchemaSql, createAdmin, createUser, jwtVerifier, startJobs, type JobsRuntime } from '@protobase/server'
 import { betterAuthAuthenticator, createAuth } from '@protobase/server/internal'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -52,7 +52,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     await pg.exec(supabaseLike)
-    await pg.exec((await changesMigration(pg.db, [todos.toModel()]))!)
+    await pg.exec(captureSchemaSql([todos.toModel()]))
     const pair = await generateKeyPair('ES256')
     const keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(pair.publicKey)), alg: 'ES256', kid: 'k1' }] })
     tokenOf = (sub) => new SignJWT({ sub, role: 'authenticated' }).setProtectedHeader({ alg: 'ES256', kid: 'k1' }).setIssuer(issuer).setAudience(issuer).setExpirationTime('5m').sign(pair.privateKey)
@@ -169,7 +169,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTempla
     const pg = await openPostgresDatabase('jobs')
     const store = await openPostgresDatabase('auth')
     await pg.exec(supabaseLike)
-    await pg.exec((await changesMigration(pg.db, [todos.toModel()]))!)
+    await pg.exec(captureSchemaSql([todos.toModel()]))
     const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:5173', secret: 'test-secret-test-secret-test-secret-1234', mailer: false })
     await createUser(auth, { email: 'ann@example.com', password: 'correct horse battery' })
     const errors: unknown[] = []

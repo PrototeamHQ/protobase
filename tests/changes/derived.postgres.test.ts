@@ -1,7 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { changesMigration, checkDerived, createAdmin, derivedMigration, startJobs, type DerivedCompute, type JobsRuntime } from '@protobase/server'
+import { captureSchemaSql, checkDerived, createAdmin, derivedMigration, startJobs, type DerivedCompute, type JobsRuntime } from '@protobase/server'
 import { fieldTypes } from '../../packages/server/src/derived/affected'
 import { claim, keep, markStale } from '../../packages/server/src/derived/derived-state'
 import { runDerived } from '../../packages/server/src/derived/run-derived'
@@ -52,7 +52,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
       create table tasks (id integer generated always as identity primary key, objective_id integer not null, status text not null, created_at timestamptz not null default now())`)
     const models = [objectives.toModel(), tasks.toModel()]
     await expect(checkDerived(db, models)).rejects.toThrow('The derived schema is missing')
-    await pg.exec((await changesMigration(db, models))!)
+    await pg.exec(captureSchemaSql(models))
     await pg.exec((await derivedMigration(db, models))!)
     expect(await derivedMigration(db, models)).toBeUndefined()
     admin = createAdmin({ resources: [objectives, tasks], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), derived: { 'objectives.verdict': verdict }, options: { statementTimeoutMs } })
@@ -239,7 +239,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('filling a newly declare
       create table tasks (id integer generated always as identity primary key, objective_id integer not null, status text not null, created_at timestamptz not null default now());
       insert into objectives (title) select 'Objective ' || i from generate_series(1, 1200) i`)
     const models = [objectives.toModel(), tasks.toModel()]
-    await pg.exec((await changesMigration(db, models))!)
+    await pg.exec(captureSchemaSql(models))
     await pg.exec((await derivedMigration(db, models))!)
     // Once the first page is queued, ten of its records go: paging by offset would then pass over ten of the next page.
     await pg.exec(`create table deleted_once (done boolean);

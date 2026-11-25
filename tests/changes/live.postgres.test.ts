@@ -2,7 +2,7 @@ import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { readEventStream } from '@protobase/schema/internal'
-import { changesMigration, checkChanges, createAdmin, startJobs, type JobsRuntime } from '@protobase/server'
+import { captureSchemaSql, createAdmin, startJobs, type JobsRuntime } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -27,8 +27,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('live updates on Postgre
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     await pg.exec('create table orders (id integer generated always as identity primary key, status text not null)')
-    await expect(checkChanges(db, [orders.toModel()])).rejects.toThrow('The changes of orders are not captured')
-    await pg.exec((await changesMigration(db, [orders.toModel()]))!)
+    await pg.exec(captureSchemaSql([orders.toModel()]))
     admin = createAdmin({ resources: [orders], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), options: { statementTimeoutMs } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })

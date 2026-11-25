@@ -1,7 +1,7 @@
 import { sql, Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { changesMigration, createAdmin, startJobs, subscription, type JobsRuntime, type ResourceChange, type SubscriptionEvent } from '@protobase/server'
+import { captureSchemaSql, createAdmin, startJobs, subscription, type JobsRuntime, type ResourceChange, type SubscriptionEvent } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
@@ -53,7 +53,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('dispatch when event cod
     db = pg.db
     await pg.exec('create table orders (id integer generated always as identity primary key, notes text, code text)')
     await pg.exec('create table keys (id integer generated always as identity primary key, name text not null, api_secret text)')
-    await pg.exec((await changesMigration(db, [orders.toModel(), keysResource.toModel()]))!)
+    await pg.exec(captureSchemaSql([orders.toModel(), keysResource.toModel()]))
     vi.spyOn(console, 'log').mockImplementation((line: string) => void logged.push(line))
     const admin = createAdmin({
       resources: [orders, keysResource],
@@ -174,11 +174,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('dispatch when event cod
 
   it('leaves out a field captured before it became sensitive, in events, history and kept changes', async () => {
     keysFixed = false
-    await pg.exec((await changesMigration(db, [orders.toModel(), staleKeys.toModel()]))!)
+    await pg.exec(captureSchemaSql([orders.toModel(), staleKeys.toModel()]))
     await sql`insert into keys (name, api_secret) values ('old', 'captured-secret')`.execute(db)
     await sql`update keys set name = 'renamed', api_secret = 'captured-secret-2' where id = 2`.execute(db)
     await sql`delete from keys where id = 2`.execute(db)
-    await pg.exec((await changesMigration(db, [orders.toModel(), keysResource.toModel()]))!)
+    await pg.exec(captureSchemaSql([orders.toModel(), keysResource.toModel()]))
     const history = async () =>
       (await sql<{ operation: string; before: unknown; after: unknown; changed: string[] }>`select operation, before, after, changed from changes.history where record_key = '2' order by id`.execute(db)).rows
     await until(async () => expect((await history()).map((row) => row.operation)).toEqual(['create', 'update', 'delete']))

@@ -1,4 +1,4 @@
-import { schemaModules, storeModel, type SchemaModuleId } from '@protobase/server/internal'
+import { schemaModules, storeModel, type ModuleTargets } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
 import { authRefusals, organizationRefusals, redescribed, snapshotStore, stepsAfter } from './auth-difference'
 import type { AuthTarget } from './auth-target'
@@ -21,7 +21,7 @@ const unswitched = (snapshot: Parameters<typeof moduleChanges>[0], auth: AuthTar
  * migrations lack, a schema module of `modules` they lack or have older, and a file that does not say, or says wrongly,
  * how it treats older code (`lintFiles`). None when they match.
  */
-export const checkMigrations = async (projectDir: string, dir: string, auth: AuthTarget | undefined, modules: readonly SchemaModuleId[]) => {
+export const checkMigrations = async (projectDir: string, dir: string, auth: AuthTarget | undefined, modules: ModuleTargets) => {
   const snapshot = await readSnapshot(projectDir)
   const files = await readMigrationFiles(dir)
   const found = inconsistencies(snapshot, files)

@@ -3,7 +3,7 @@ import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { changesMigration, createAdmin, createEncryptionTools, jobsSchemaSql, startJobs } from '@protobase/server'
+import { captureSchemaSql, createAdmin, createEncryptionTools, jobsSchemaSql, startJobs } from '@protobase/server'
 import { connectServer, databaseUrl, serverReachable } from '../../scripts/test-db/templates'
 import { statementTimeoutMs } from '../../test-support/postgres-database'
 
@@ -54,7 +54,7 @@ describe.skipIf(!reachable)('encrypting a column that history and the outbox cap
     db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
     await pool.query(jobsSchemaSql())
     await pool.query(ddl)
-    await pool.query((await changesMigration(db, [notesWith(false).toModel(), drafts.toModel()]))!)
+    await pool.query(captureSchemaSql([notesWith(false).toModel(), drafts.toModel()]))
   })
   afterAll(async () => { await db?.destroy() })
 
@@ -73,7 +73,7 @@ describe.skipIf(!reachable)('encrypting a column that history and the outbox cap
     expect(await holding('outbox', tokenCanary)).toBe(1)
 
     // The fields become encrypted: the trigger change first, as `protobase migration` writes it, then apply.
-    await pool.query((await changesMigration(db, [notesWith(true).toModel(), drafts.toModel()]))!)
+    await pool.query(captureSchemaSql([notesWith(true).toModel(), drafts.toModel()]))
     const tools = createEncryptionTools({ resources: [notesWith(true), drafts, children], db, env: { PROTOBASE_ENCRYPTION_KEY: key } })!
     const before = await tools.status()
     expect(before.fields.map(({ field, plaintext, history, outbox }) => ({ field, plaintext, history, outbox }))).toEqual([

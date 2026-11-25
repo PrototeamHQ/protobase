@@ -53,6 +53,6 @@ Who is on a record's page and what they send each other, which no change of a re
 
 ## The table
 
-[`protobase migration`](/reference/cli/#migration) adds the table `changes.notices` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each live resource and of each resource a live view reads; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing.
+[`protobase migration`](/reference/cli/#migration) adds the table `changes.notices` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each live resource and of each resource a live view reads; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the record of migrations lacks the table or a trigger.
 
 A notice is a resource, a record key, the record's tenant and the operation, written by the `changes.dispatch` job in the transaction that removes the change from the outbox; a live resource therefore needs the [`jobs` schema](/reference/jobs/#the-jobs-schema) and the app's workers. Notices are kept for 10 minutes. Each serving process with at least one page open reads the table once a second, however many pages it serves, so live updates work with several serving processes, with `PROTOBASE_JOBS=false` and through a pooler in transaction mode.

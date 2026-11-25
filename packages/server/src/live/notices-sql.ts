@@ -6,7 +6,8 @@ import type { NoticeChange } from './live-notices'
 
 /**
  * The recent changes of the resources with `.live()`, which open pages refresh from: a row per record and transaction,
- * its key and never its values. `id` grows in commit order, since one dispatch writes at a time.
+ * its key and never its values. `id` grows in commit order, since one dispatch writes at a time. Step 1 of the notices
+ * module (`notices-module.ts`): frozen once released, as every step is.
  */
 export const noticesTableSql = (schema: string) => {
   const table = `${quoteIdent(schema)}."notices"`

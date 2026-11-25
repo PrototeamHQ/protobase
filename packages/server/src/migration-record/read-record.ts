@@ -12,14 +12,15 @@ type Row = {
 
 /**
  * Whether a row of the record holds every part of `runtime` as it is: the auth store and each schema module it reads.
- * A part the runtime does not read, such as a module another version needs, does not count.
+ * A part the runtime does not read, such as a module another version needs or a resource's objects kept for older
+ * code, does not count: a module's model contains the runtime's.
  */
 const holdsRuntime = (runtime: RecordModel) =>
   sql.join(
     [
       sql`true`,
       ...(runtime.auth ? [sql`model -> 'auth' = ${JSON.stringify(runtime.auth)}::jsonb`] : []),
-      ...Object.entries(runtime.modules ?? {}).map(([id, module]) => sql`model -> 'modules' -> ${id} = ${JSON.stringify(module)}::jsonb`),
+      ...Object.entries(runtime.modules ?? {}).map(([id, module]) => sql`model -> 'modules' -> ${id} @> ${JSON.stringify(module)}::jsonb`),
     ],
     sql` and `,
   )

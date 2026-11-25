@@ -11,6 +11,7 @@ import { signInGuide } from '../../src/migration/summary'
 import { runMigration, type Section } from '../../src/migration/snapshot/run-migration'
 import { trialContractions } from '../../src/migration/older-code/trial'
 import { protobaseVersion } from '../../src/version/version'
+import { schemaModules } from '@protobase/server/internal'
 import { bin, root, run } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -35,8 +36,8 @@ const notes = () => resource('notes').table('notes').fields({ id: f.integer().re
 const migrationFor = async (config: Parameters<typeof servedConfig>[0]) => {
   const project = await migrationProject(servedConfig(config), databaseUrl)
   try {
-    const database = { url: databaseUrl, parts: migrationParts(project), contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections), readModule: async () => undefined }
-    const file = await runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, modules: [], database, protobaseVersion, newId: randomUUID })
+    const database = { url: databaseUrl, parts: migrationParts(project), contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections), readModule: (id: keyof typeof schemaModules, input: Parameters<(typeof schemaModules)[typeof id]['read']>[1]) => schemaModules[id].read(project.db, input) }
+    const file = await runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, modules: project.modules, database, protobaseVersion, newId: randomUUID })
     return file ? [path.basename(file)] : []
   } finally {
     await project.close()
@@ -110,14 +111,21 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
     await sql.end()
   })
 
-  it('refuses to drop the triggers once no resource has events, as older code still captures with them', async () => {
-    await expect(migrationFor({ config: { notes: notes() } })).rejects.toThrow('changes drops or disables the trigger calling changes.capture() on public.notes for insert, delete, update')
+  it('drops the triggers once no resource has events in a file that breaks older code, which still captures with them', async () => {
+    const snapshotBefore = await readFile(path.join(projectDir, 'protobase.snapshot.json'), 'utf8')
+    const [file] = await migrationFor({ config: { notes: notes() } })
+    const text = await readFile(path.join(projectDir, 'db/migrations', file!), 'utf8')
+    expect(text).toContain('\n-- protobase:breaks-older-code\n')
+    expect(text).toContain("-- The change capture the resources' events and history need: it drops its triggers of notes, which the code before still runs with.\n")
+    expect(text).toContain('drop trigger if exists "notes_changes" on "notes";')
+    await rm(path.join(projectDir, 'db/migrations', file!))
+    await writeFile(path.join(projectDir, 'protobase.snapshot.json'), snapshotBefore)
   })
 
   it('refuses a part that would take from older code what it reads, writing nothing', async () => {
     const rename = { name: 'computed', title: 'A rename', sql: async () => 'alter table notes rename column body to text;' }
     const database = { url: databaseUrl, parts: [rename], contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections), readModule: async () => undefined }
-    await expect(runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, modules: [], database, protobaseVersion, newId: randomUUID })).rejects.toThrow(
+    await expect(runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, modules: {}, database, protobaseVersion, newId: randomUUID })).rejects.toThrow(
       'computed drops or renames column public.notes.body, adds the required column public.notes.text without a default. To make it anyway, write it by hand with `protobase migration --custom <name>`',
     )
   })

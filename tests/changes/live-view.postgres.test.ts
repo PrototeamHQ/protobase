@@ -2,7 +2,7 @@ import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { readEventStream } from '@protobase/schema/internal'
-import { changesMigration, createAdmin, startJobs, type JobsRuntime } from '@protobase/server'
+import { captureSchemaSql, createAdmin, startJobs, type JobsRuntime } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -36,7 +36,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('live views on Postgres'
       create table audit (id integer generated always as identity primary key, body text not null);
       create view thread as select 'm' || id as id, body from messages union all select 'r' || id, body from replies`)
     const models = [messages, replies, audit, thread].map((model) => model.toModel())
-    await pg.exec((await changesMigration(db, models))!)
+    await pg.exec(captureSchemaSql(models))
     admin = createAdmin({ resources: [messages, replies, audit, thread], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }) })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
@@ -78,7 +78,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('live views on Postgres'
   it('refuses to put a trigger on the view when another resource reads it', async () => {
     const digest = resource('digest').table('digest').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['thread'] })
     const models = [resource('thread').table('thread').fields({ id: f.text(), body: f.text() }).primaryKey((r) => r.id), digest].map((model) => model.toModel())
-    await expect(changesMigration(db, models)).rejects.toThrow('Resource "thread" is backed by a view, which takes no trigger')
+    await expect(pg.exec(captureSchemaSql(models))).rejects.toThrow('"thread" is a view')
   })
 
   it('leaves the view alone when another table changes', async () => {

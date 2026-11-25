@@ -1,7 +1,7 @@
 import { CompiledQuery } from 'kysely'
 import type { Db } from '@protobase/query'
 import { moduleDifference } from '../schema-modules/module-difference'
-import type { ModuleModel, SchemaModule } from '../schema-modules/schema-module'
+import { noInput, type ModuleModel, type SchemaModule } from '../schema-modules/schema-module'
 import { functionsSql, functionsVersion } from './functions-sql'
 import { jobsSchema } from './schema'
 import { pgBoss45 } from './steps/001-pg-boss-45'
@@ -72,11 +72,12 @@ const readJobs = async (db: Db): Promise<ModuleModel | undefined> => {
 export const jobsModule: SchemaModule = {
   label: 'the jobs schema',
   title: 'The jobs schema this version of Protobase needs',
-  steps: [{ step: 1, name: 'pg_boss_45', title: "pg-boss's tables at its schema version 45", additive: true, sql: pgBoss45 }],
+  steps: [{ step: 1, name: 'pg_boss_45', title: "pg-boss's tables at its schema version 45", additive: true, sql: () => pgBoss45 }],
   // Not marked compatible with an earlier version: the code of one before it is not known to run on them.
-  replaceables: [{ name: 'functions', title: "Protobase's functions of the jobs schema", version: functionsVersion, compatibleFrom: functionsVersion, sql: functionsSql(jobsSchema) }],
+  replaceables: [{ name: 'functions', title: "Protobase's functions of the jobs schema", version: functionsVersion, compatibleFrom: functionsVersion, sql: () => functionsSql(jobsSchema) }],
+  resourceReplaceables: [],
   read: readJobs,
 }
 
 /** The whole jobs schema, as a migration writes it on a database without it. */
-export const jobsSchemaSql = () => moduleDifference(jobsModule, undefined).sql!
+export const jobsSchemaSql = () => moduleDifference(jobsModule, noInput, undefined).sql!
