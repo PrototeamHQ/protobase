@@ -39,7 +39,7 @@ describe('realtime.members', () => {
   it('reads as current once its statements ran, filled from the live records already there', async () => {
     const model = await relayModule.read(db, input({ directs: listed }))
     expect(model).toMatchObject({ lastStep: 1, replaceables: { members: 3 } })
-    expect(model!.resources!.members!.directs!.digest).not.toBe('')
+    expect(model!.resources!.members!.directs!.digest).toEqual(expect.stringMatching(/.+/))
     expect(await rows()).toEqual(['1:ann', '1:bob'])
   })
 
@@ -107,7 +107,7 @@ create table rooms_b partition of rooms for values from (100) to (200)`).execute
     expect(await roomRows()).toEqual(['1:ann', '150:bob', '150:cy'])
     await sql`truncate rooms_a`.execute(db)
     expect(await roomRows()).toEqual(['150:bob', '150:cy'])
-    expect(await digest({ rooms }, 'rooms')).not.toBe('')
+    expect(await digest({ rooms }, 'rooms')).toEqual(expect.stringMatching(/.+/))
 
     await sql`alter table rooms_b disable trigger realtime_members`.execute(db)
     expect(await digest({ rooms }, 'rooms')).toBe('')
@@ -115,8 +115,17 @@ create table rooms_b partition of rooms for values from (100) to (200)`).execute
     await sql`create table rooms_c partition of rooms for values from (200) to (300)`.execute(db)
     expect(await digest({ rooms }, 'rooms')).toBe('')
     await sql.raw(statements(listedTableSql(rooms))).execute(db)
-    expect(await digest({ rooms }, 'rooms')).not.toBe('')
+    expect(await digest({ rooms }, 'rooms')).toEqual(expect.stringMatching(/.+/))
     await expect(sql.raw(statements(listedTableSql({ ...rooms, table: '"rooms_a"' }))).execute(db)).rejects.toThrow('a partition or a table in an inheritance tree')
+  })
+
+  it("reads a resource's triggers left on a table it no longer has apart from those on its own, so they are dropped", async () => {
+    const rooms = { resource: 'rooms', table: '"rooms"', key: 'id', members: 'members', deleted: '' }
+    await sql.raw(`create table rooms_old (id integer primary key, members jsonb); ${statements(listedTableSql({ ...rooms, table: '"rooms_old"' }))}`).execute(db)
+    const entries = (await relayModule.read(db, input({ rooms })))!.resources!.members!
+    expect(entries.rooms!.digest).toEqual(expect.stringMatching(/.+/))
+    expect(entries['rooms on rooms_old']).toMatchObject({ digest: '', table: { schema: 'public', name: 'rooms_old' } })
+    await sql.raw(relayModule.resourceReplaceables[0]!.drop({}, { schema: 'public', name: 'rooms_old' })).execute(db)
   })
 
   it("drops a table's triggers, on its partitions too, and the members of the resource they kept", async () => {

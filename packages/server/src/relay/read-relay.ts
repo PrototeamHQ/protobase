@@ -11,13 +11,18 @@ const triggerArgs = (hex: string) => new TextDecoder().decode(Buffer.from(hex, '
 type FoundTrigger = { table: string; schema: string; relname: string; name: string; args: string[]; enabled: boolean; partitions: string[] }
 
 // Every trigger calling `members_kept()` but Postgres's clones on partitions, with the table it is on as SQL names it
-// and that table's partitions, in one read; a clone counts by firing, so a disabled one marks its root disabled.
+// and that table's partitions, in one read; a clone counts by firing, so a disabled one at any depth of the partition
+// tree, a clone of a clone included, marks its root disabled.
 const readTriggers = async (db: Db): Promise<FoundTrigger[]> =>
   (
     await sql<{ table: string; schema: string; relname: string; name: string; args: string; enabled: boolean; partitions: string[] }>`select t.tgrelid::regclass::text as "table",
         n.nspname as schema, c.relname, t.tgname as name,
         encode(t.tgargs, 'hex') as args,
-        t.tgenabled in ('O', 'A') and not exists (select from pg_trigger c where c.tgparentid = t.oid and c.tgenabled not in ('O', 'A')) as enabled,
+        t.tgenabled in ('O', 'A') and not exists (
+          with recursive clones as (select oid, tgenabled from pg_trigger where tgparentid = t.oid
+            union all select c.oid, c.tgenabled from pg_trigger c join clones on c.tgparentid = clones.oid)
+          select from clones where tgenabled not in ('O', 'A')
+        ) as enabled,
         array(select tree.relid::regclass::text from pg_partition_tree(t.tgrelid) as tree where tree.relid <> t.tgrelid order by 1) as partitions
       from pg_trigger t join pg_proc p on p.oid = t.tgfoid join pg_namespace pn on pn.oid = p.pronamespace
       join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
@@ -69,11 +74,13 @@ export const readRelay = (members: ResourceReplaceable) => async (db: Db, input:
     const entry = resourceEntry(members, input.names, one)
     entries[key] = keeps(found, one.input as ListedTable, rel) ? entry : { ...entry, digest: '' }
   })
-  // Row triggers on a table no listed resource has, recorded by the resource they keep, which is their first argument.
+  // Row triggers on a table no listed resource has, recorded by the resource they keep, which is their first argument,
+  // so they are dropped; one of a resource recorded on its own table already is kept apart, under the table it is on.
   for (const trigger of found) {
     const [resource] = trigger.args
-    if (trigger.name !== rowTrigger || resource === undefined || entries[resource] || rels.includes(trigger.table)) continue
-    entries[resource] = { version: members.version, digest: '', table: { schema: trigger.schema, name: trigger.relname } }
+    if (trigger.name !== rowTrigger || resource === undefined || rels.includes(trigger.table)) continue
+    const key = entries[resource] ? `${resource} on ${trigger.table}` : resource
+    entries[key] = { version: members.version, digest: '', table: { schema: trigger.schema, name: trigger.relname } }
   }
   return {
     lastStep: state!.table ? 1 : 0,
