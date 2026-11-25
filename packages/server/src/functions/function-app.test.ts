@@ -5,6 +5,7 @@ import { forbidden } from '../problem'
 import { defineFunction } from './define-function'
 import { functionApp, type PublicFunctionEnv } from './function-app'
 import { functionRoutes } from './routes'
+import { appScope } from '../organization-scope/app-scope'
 
 const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnhandledError = vi.fn()) => ({
   routes: functionRoutes({
@@ -12,7 +13,7 @@ const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnha
     functions: { shop: defineFunction({ public: true }, app) },
     authenticate: () => ({ user: { id: 1, roles: [] } }),
     access: {},
-    scope: { tables: [] },
+    scope: appScope({ organizations: false, names: undefined }),
     db: {} as Db,
     records: () => ({}) as never,
     channels: { broadcast: async () => {} },

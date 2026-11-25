@@ -6,6 +6,7 @@ import { createErrorHandler } from '../error-handler'
 import { unauthorized } from '../problem'
 import { defineFunction, type ApiFunction, type KeyFunctionContext } from './define-function'
 import { supabaseFunctionRoutes } from './supabase-routes'
+import { appScope } from '../organization-scope/app-scope'
 
 const keys: ApiKeys = { publishable: 'sb_publishable_1', secret: 'sb_secret_1' }
 
@@ -17,7 +18,7 @@ const verify = async (token: string) => {
 }
 
 const serve = (functions: Record<string, ApiFunction>, appKeys = keys) =>
-  supabaseFunctionRoutes({ functions, db, scope: { tables: [] }, keys: appKeys, caller: apiKeyCaller({ keys: appKeys, verify }), onError: createErrorHandler(vi.fn()) })
+  supabaseFunctionRoutes({ functions, db, scope: appScope({ organizations: false, names: undefined }), keys: appKeys, caller: apiKeyCaller({ keys: appKeys, verify }), onError: createErrorHandler(vi.fn()) })
 
 const invoke = (bearer?: string, init: RequestInit = {}) => ({ ...init, headers: { apikey: keys.publishable!, ...(bearer && { authorization: `Bearer ${bearer}` }), ...init.headers } })
 

@@ -7,6 +7,7 @@ import { createErrorHandler } from '../error-handler'
 import type { FunctionRecords } from './records'
 import { defineFunction } from './define-function'
 import { functionRoutes } from './routes'
+import { appScope } from '../organization-scope/app-scope'
 
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((cleanup) => cleanup()))
@@ -24,7 +25,7 @@ const serveOwn = async (maxMessageBytes?: number) => {
       return { user: { id: 1, roles: ['admin'] } }
     },
     access: {},
-    scope: { tables: [] },
+    scope: appScope({ organizations: false, names: undefined }),
     db: {} as Db,
     records: () => ({}) as FunctionRecords,
     channels: { broadcast: async () => {} },

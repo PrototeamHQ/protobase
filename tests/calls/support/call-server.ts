@@ -8,6 +8,7 @@ import { callsRuntime } from '../../../packages/server/src/calls/calls-runtime'
 import { guestRoutes } from '../../../packages/server/src/calls/guest-routes'
 import { createErrorHandler } from '../../../packages/server/src/error-handler'
 import { functionRoutes } from '../../../packages/server/src/functions/routes'
+import { appScope } from '../../../packages/server/src/organization-scope/app-scope'
 import { notFound } from '../../../packages/server/src/problem'
 
 export type CallServerInput = {
@@ -64,7 +65,7 @@ export const startCallServer = async ({ calls, db, page }: CallServerInput) => {
       return { user: { id: member, roles: ['*'] } }
     },
     access: {},
-    scope: { tables: [] },
+    scope: appScope({ organizations: false, names: undefined }),
     db,
     records: (session) => meetings(String(session.user.id)),
     onError: createErrorHandler((error) => void errors.push(error)),
