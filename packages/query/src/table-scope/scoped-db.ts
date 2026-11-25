@@ -59,7 +59,8 @@ export const scopedDb = (db: Db, scope: ScopedTables, organization: ScopeOrganiz
         if (property in own) return own[property]
         const value: unknown = Reflect.get(on, property, on)
         if (typeof value !== 'function') return value
-        return (...args: unknown[]) => guard(value.apply(on, args))
+        // A proxy of the method keeps the properties a callable one carries, such as `db.fn.count`.
+        return new Proxy(value, { apply: (method, _, args: unknown[]) => guard(Reflect.apply(method, on, args)) })
       },
     })
 

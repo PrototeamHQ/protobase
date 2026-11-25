@@ -152,6 +152,11 @@ describe('scopedDb', () => {
     expect(() => everyOrganization(' ')).toThrow('reason')
   })
 
+  it("keeps the functions of db.fn, a callable with functions of its own, as Better Auth's counts use them", () => {
+    expect(compiledText(db.selectFrom('auth.member').select(db.fn.count('id').as('n')))).toBe('select count("id") as "n" from "auth"."member" where "auth"."member"."organization_id" = $1')
+    expect(compiledText(db.selectFrom('auth.member').select(db.fn('upper', ['role']).as('r')))).toBe('select upper("role") as "r" from "auth"."member" where "auth"."member"."organization_id" = $1')
+  })
+
   it('fails fast on joins it cannot scope', () => {
     expect(() => compiled(db.selectFrom('auth.member').rightJoin('auth.user', 'auth.user.id', 'auth.member.user_id').selectAll())).toThrow('Not implemented')
     expect(() => compiled(db.selectFrom('auth.user').fullJoin('auth.member', 'auth.user.id', 'auth.member.user_id').selectAll())).toThrow('Not implemented')
