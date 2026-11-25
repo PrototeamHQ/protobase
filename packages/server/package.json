@@ -62,7 +62,7 @@
     "@protobase/workflows": "workspace:*",
     "@react-email/render": "^2.1.0",
     "@react-pdf/primitives": "^4.4.0",
-    "@react-pdf/renderer": "^4.9.0",
+    "@react-pdf/renderer": "^4.9.1",
     "@scalar/hono-api-reference": "^0.12.10",
     "@sentry/core": "^11.7.0",
     "@simplewebauthn/server": "^13.3.1",
