@@ -1,4 +1,4 @@
-import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type Compilable, type RawBuilder } from 'kysely'
+import { DummyDriver, IdentifierNode, Kysely, OperationNodeTransformer, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type Compilable, type RawBuilder, type TableNode } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { scoped, unscoped } from './raw-tables'
 import { everyOrganization, type EveryOrganization } from './organization-source'
@@ -201,6 +201,20 @@ describe('scopedDb', () => {
     })
     expect(() => db.with('x', (q) => q.selectFrom('auth.user').select('id')).withoutPlugins()).toThrow("db.unscoped('<reason>')")
     expect(seen).toEqual(['select "id" from "auth"."member" where "auth"."member"."organization_id" = $1'])
+  })
+
+  it("scopes the names a query writes before the database's own plugins rename them, and renames the condition with them", () => {
+    class Renames extends OperationNodeTransformer {
+      protected override transformTable(node: TableNode): TableNode {
+        const table = super.transformTable(node)
+        return table.table.identifier.name === 'member' ? { ...table, table: { ...table.table, identifier: IdentifierNode.create('app_member') } } : table
+      }
+    }
+    const renames = new Renames()
+    const renamed = base.withPlugin({ transformQuery: ({ node }) => renames.transformNode(node), transformResult: async ({ result }) => result })
+    const kept = scopedDb(renamed, { tables: [{ schema: 'auth', table: 'member', column: 'organization_id' }] }, 'org-a')
+    expect(compiledText(kept.selectFrom('auth.member').select('id'))).toBe('select "id" from "auth"."app_member" where "auth"."app_member"."organization_id" = $1')
+    expect(compiledText(scopedDb(base.withSchema('auth'), scope, 'org-a').selectFrom('member').select('id'))).toBe('select "id" from "auth"."member" where "auth"."member"."organization_id" = $1')
   })
 
   it('scopes names withSchema qualifies', () => {

@@ -1,4 +1,4 @@
-import { ConnectionBuilder, ControlledTransactionBuilder, Kysely, QueryCreator, TransactionBuilder, type KyselyPlugin } from 'kysely'
+import { ConnectionBuilder, ControlledTransactionBuilder, Kysely, QueryCreator, TransactionBuilder, WithSchemaPlugin, type KyselyPlugin } from 'kysely'
 import type { Db } from '../db'
 import { currentOrganization, type EveryOrganization, type ScopeOrganization } from './organization-source'
 import type { Organization } from './scope-condition'
@@ -32,6 +32,18 @@ const withoutScope = <Instance extends Kysely<any>>(instance: Instance) =>
     .getExecutor()
     .plugins.filter((plugin) => !(plugin instanceof ScopePlugin))
     .reduce<Kysely<any>>((done, plugin) => done.withPlugin(plugin), instance.withoutPlugins())
+
+/**
+ * `db` with the scope's plugin where it sees the names its queries write: after a schema `withSchema` gives, as
+ * Kysely runs that first, and before the database's other plugins, so one that renames a table, such as to the name it
+ * has in the database, renames the scope's condition with it.
+ */
+const withScope = (db: Db, plugin: ScopePlugin) => {
+  const plugins = db.getExecutor().plugins
+  const schemas = plugins.filter((one) => one instanceof WithSchemaPlugin)
+  const others = plugins.filter((one) => !(one instanceof WithSchemaPlugin))
+  return [...schemas, plugin, ...others].reduce<Kysely<any>>((done, one) => done.withPlugin(one), db.withoutPlugins())
+}
 
 /**
  * `db` kept to `organization` on the scoped tables of `scope`: a fixed one, or an `OrganizationSource` read as each
@@ -88,5 +100,5 @@ export const scopedDb = (db: Db, scope: ScopedTables, organization: ScopeOrganiz
     })
 
   // Without a scoped table there is nothing to keep to the organization.
-  return guardDb(scope.tables.length === 0 ? db : db.withPlugin(new ScopePlugin(scope, organization))) as ScopedDb
+  return guardDb(scope.tables.length === 0 ? db : withScope(db, new ScopePlugin(scope, organization))) as ScopedDb
 }

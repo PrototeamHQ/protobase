@@ -13,7 +13,7 @@ import { createUser } from '../src/better-auth/users'
 import { storeSqlOf } from '../src/better-auth/store/store-sql'
 import type { Mailer } from '../src/mail/mail-message'
 import { answerInOrganization, sessionActiveOrganization } from '../src/organization-scope/auth-request-organization'
-import { signInOrganization } from '../src/organization-scope/sign-in-organization'
+import { inOrganization, signInOrganization } from '../src/organization-scope/sign-in-organization'
 import type { AuthContext } from '../src/better-auth/organizations/store'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 
@@ -119,13 +119,23 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
     const renamed = { session: 'app_session', member: 'app_member', personal_access_token: 'app_personal_access_token' }
     const app = await serve(renamed)
     await app.store.exec(Object.entries(renamed).map(([from, to]) => `alter table ${from} rename to ${to}`).join('; '))
-    const { user, organization, personal } = await signInFlow(app)
+    const { user, cookie, organization, personal } = await signInFlow(app)
     expect([personal.user.id, personal.tenant]).toEqual([user.id, organization.id])
     const counts = await app.store.db
       .selectNoFrom((eb) => Object.values(renamed).map((table) => eb.selectFrom(table).select(eb.fn.countAll<string>().as('n')).as(table)))
       .executeTakeFirstOrThrow()
     // Ana's memberships: the organization she made and the default one.
     expect(counts).toEqual({ app_session: '1', app_member: '2', app_personal_access_token: '1' })
+    // The scope holds on the renamed tables: the member list of her organization leaves out another's members.
+    await createUser(app.auth, { email: 'bo@example.com', password, name: 'Bo' })
+    await createOrganization(app.auth, { name: 'Other', slug: 'other', owner: 'bo@example.com' })
+    const listed = (await (await app.request('/api/auth/organization/list-members', { cookie })).json()) as { members: { userId: string; organizationId: string }[] }
+    expect(listed.members.map((member) => [member.userId, member.organizationId])).toEqual([[user.id, 'default']])
+    const { db: storeDb } = storeSqlOf((await app.auth.$context) as unknown as AuthContext)
+    const read = await inOrganization('default', () => storeDb.selectFrom('member').select('organization_id').execute())
+    expect(read.map((row) => row.organization_id)).toEqual(['default'])
+    const theirs = app.returned.filter(({ organization }) => typeof organization === 'string').flatMap(({ organization, rows }) => rows.filter((row) => 'organization_id' in row && row.organization_id !== organization))
+    expect(theirs).toEqual([])
     // The store's own SQL maps its tables too: ending a device's sessions deletes the row of the renamed table.
     const { id } = await app.store.db.selectFrom('app_session').select('id').executeTakeFirstOrThrow()
     await app.store.db.insertInto('device_session').values({ id: 'd1', session_id: id, account_id: 'device-account', created_at: new Date() }).execute()
