@@ -1,11 +1,12 @@
 {
   "(repeated)": [
-    {"sql":"select \"module\" as module, \"step\" as step, \"target\" as target from \"auth_steps\" order by 1, 2, 3","result":{"command":"SELECT","rowCount":26,"columns":[["module",25],["step",23],["target",25]],"rows":[
+    {"sql":"select \"module\" as module, \"step\" as step, \"target\" as target from \"auth_steps\" order by 1, 2, 3","result":{"command":"SELECT","rowCount":27,"columns":[["module",25],["step",23],["target",25]],"rows":[
       ["auth","1","auth"],
       ["auth","2","auth"],
       ["auth","3","auth"],
       ["auth","4","auth"],
       ["auth","5","auth"],
+      ["auth","6","auth"],
       ["mail_senders","1","mail_senders"],
       ["mail_senders","2","mail_senders"],
       ["mail_senders","3","mail_senders"],
