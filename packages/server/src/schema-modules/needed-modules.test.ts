@@ -47,17 +47,46 @@ describe('neededModules', () => {
     expect(ids(app([], { notifications: { store: {} as never } }))).toEqual(['jobs', 'notification_history'])
   })
 
-  it("needs the jobs schema for the relay's channels, with sign-in and a live conversation resource whose page has members", () => {
+  it("needs the relay, after the jobs schema its trigger enqueues on, for its channels, with sign-in and a live conversation resource whose page has members", () => {
     const view = { resource: 'tickets', record: { conversation: { resource: 'messages', field: 'ticket_id', sender: 'author_id', time: 'created_at', text: 'body', members: 'members' } } } as unknown as ViewModel
     const live = tickets.fields({ id: f.integer(), title: f.text(), members: f.json() }).live().toModel()
-    expect(ids(app([live], { views: [view], signIn: true }))).toEqual(['jobs', 'changes', 'notices'])
+    const store = settingsStoreNames({})
+    const relay = neededModules(app([live], { views: [view], signIn: true, authStore: store }))
+    expect(Object.keys(relay)).toEqual(['jobs', 'changes', 'notices', 'relay'])
+    expect(relay.relay!.names).toEqual({ sessions: '"auth"."session"' })
+    expect(relay.relay!.resources.members!.tickets).toMatchObject({ table: { name: 'tickets' }, input: { resource: 'tickets', table: '"tickets"', key: 'id', members: 'members', deleted: '' } })
     expect(ids(app([live], { views: [view] }))).toEqual(['jobs', 'changes', 'notices'])
-    expect(ids(app([tickets.fields({ id: f.integer(), members: f.json() }).toModel()], { views: [view], signIn: true }))).toEqual([])
+    expect(ids(app([tickets.fields({ id: f.integer(), members: f.json() }).toModel()], { views: [view], signIn: true, authStore: store }))).toEqual([])
   })
 
-  it("needs the jobs schema for the relay's channels the config declares, with nothing else that needs jobs", () => {
+  it("needs the relay for the channels the config declares, with no listed members, and refuses it without the app's own sign-in", () => {
     expect(ids(app([tickets.toModel()]))).toEqual([])
-    expect(ids(app([tickets.toModel()], { realtime: { relay: { channels: { tickets: {} } } } }))).toEqual(['jobs'])
+    const declared = { realtime: { relay: { channels: { tickets: {} } } } }
+    const relay = neededModules(app([tickets.toModel()], { ...declared, signIn: true, authStore: settingsStoreNames({}) }))
+    expect(Object.keys(relay)).toEqual(['jobs', 'relay'])
+    expect(relay.relay!.resources).toEqual({ members: {} })
+    expect(() => neededModules(app([tickets.toModel()], declared))).toThrow("relay needs the app's own sign-in (auth)")
+  })
+
+  it("needs the statuses table under the schema status names, pointing at the auth store's users, and refuses status without sign-in", () => {
+    const store = settingsStoreNames({ generateUserId: 'uuid' })
+    expect(neededModules(app([], { status: { schema: 'presence' }, signIn: true, authStore: store })).status).toEqual({
+      names: { schema: 'presence', table: 'statuses', users: '"auth"."user"', user_id_type: 'uuid' },
+      resources: {},
+    })
+    expect(() => neededModules(app([], { status: {} }))).toThrow('status: {} shows people to the members of their organizations')
+  })
+
+  it("needs the realtime_relay schema with several processes, and the channels schema with SQL's sends", () => {
+    expect(ids(app([], { realtime: { processes: 'many' } }))).toEqual(['realtime_relay'])
+    expect(ids(app([], { realtime: { sqlSends: true } }))).toEqual(['channel_sends'])
+    expect(ids(app([], { realtime: { processes: 'one', sqlSends: false } }))).toEqual([])
+  })
+
+  it('needs the calls schema and the notices table rings reach open pages through, in the schema events names', () => {
+    const calls = neededModules(app([], { calls: {}, events: { schema: 'events' } }))
+    expect(Object.keys(calls)).toEqual(['notices', 'calls'])
+    expect(calls.notices).toEqual({ names: { schema: 'events' }, resources: {} })
   })
 
   it('needs the change capture for captured resources, with their triggers by resource, and the history and notices tables for history and live updates, in the schema events names', () => {

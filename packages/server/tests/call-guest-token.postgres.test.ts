@@ -6,7 +6,7 @@ import { createAuth } from '../src/better-auth/create-auth'
 import { createOrganization } from '../src/better-auth/organizations/host'
 import { createUser } from '../src/better-auth/users'
 import { sqlCallStore } from '../src/calls/calls-store'
-import { callsMigration } from '../src/calls/calls-sql'
+import { callsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { sqlGuestStore } from '../src/calls/guest-store'
 import { createAdmin } from '../src/create-admin'
 import { defineFunction } from '../src/functions/define-function'
@@ -55,7 +55,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))("a guest's token, on rea
     await createUser(auth, { email: 'alice@example.com', name: 'Alice', password })
     organization = String((await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'alice@example.com' })).organization.id)
     await pg.exec(`create table meetings (id integer primary key, org_id text not null, title text not null); insert into meetings values (1, '${organization}', 'Interview');`)
-    await pg.exec((await callsMigration(pg.db))!)
+    await pg.exec(callsSchemaSql())
     const meeting = defineFunction(async (_request, { session, acceptWebSocket, calls }) =>
       acceptWebSocket(await calls.join({ record: { resource: 'meetings', key: 1 }, member: String(session.user.id), publish: true, invites: true })),
     )

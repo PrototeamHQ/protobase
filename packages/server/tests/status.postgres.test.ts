@@ -7,12 +7,14 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { jobsSchemaSql } from '../src/jobs/jobs-module'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
-import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
+import { notificationsSchemaSql, statusSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { sendNotification } from '../src/notifications/send-notification'
 import type { PushSender } from '../src/notifications/sender'
 import { onDoNotDisturb } from '../src/status/do-not-disturb'
 import { statusNames } from '../src/status/options'
-import { statusMigration } from '../src/status/schema'
+import { statusModule } from '../src/status/status-module'
+import { statusTargets } from '../src/status/status-targets'
+import { storeNames } from '../src/better-auth/store/store-names'
 import type { Authenticator } from '../src/types'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -63,7 +65,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('status on real Postgres
     await createOrganization(auth, { name: 'Globex', slug: 'globex', owner: 'carol@example.com' })
     await pg.exec(jobsSchemaSql())
     await pg.exec(notificationsSchemaSql({}, auth))
-    await pg.exec((await statusMigration(pg.db, {}, auth))!)
+    await pg.exec(statusSchemaSql({}, auth))
     app = createAdmin({ resources: [], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, notifications: { senders: [recordingSender] }, status: {} })
     for (const name of ['alice', 'bob', 'carol'] as const) {
       const signedIn = await request('/api/auth/sign-in/email', { body: { email: `${name}@example.com`, password } })
@@ -86,6 +88,11 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('status on real Postgres
 
   afterAll(async () => {
     await pg?.close()
+  })
+
+  it('reads the statuses table its step wrote, with the foreign key to the users, as step 1', async () => {
+    const { status } = statusTargets({}, storeNames(auth))
+    expect(await statusModule.read(pg.db, status)).toEqual({ lastStep: 1, replaceables: {}, names: status.names })
   })
 
   it('shows a status to the members of an organization the person is in, and to no one else', async () => {

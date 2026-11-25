@@ -142,4 +142,31 @@ describe('startupRefusal', () => {
       expect(startupRefusal(all, state(all, { matched: true }), '0.15.0')).toBeUndefined()
     })
   })
+
+  describe('with status, calls, the relay, several processes and SQL sends', () => {
+    const store = settingsStoreNames({})
+    const app = (rest: Partial<Parameters<typeof neededModules>[0]>) => ({ modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: true, authStore: store, ...rest })) })
+    const relay = { realtime: { relay: { channels: {} } } }
+
+    it('refuses a database whose record lacks one, or has the calls schema without its guests, naming it and its step', () => {
+      expect(startupRefusal(app({ status: {} }), state(app({})), '0.15.0')).toContain('the database lacks the statuses table of status, which this version needs at step 1 (statuses)')
+      expect(startupRefusal(app({ calls: {} }), state(app({})), '0.15.0')).toContain('the database lacks the calls schema, which this version needs at step 2 (guests)')
+      const withoutGuests = app({ calls: {} })
+      withoutGuests.modules.calls!.lastStep = 1
+      expect(startupRefusal(app({ calls: {} }), state(withoutGuests), '0.15.0')).toContain('the calls schema is at step 1 (calls), and this version needs step 2 (guests)')
+      expect(startupRefusal(app(relay), state(app({ jobs: [{}] })), '0.15.0')).toContain('the database lacks the realtime relay, which this version needs at step 1 (members)')
+      expect(startupRefusal(app({ realtime: { processes: 'many', sqlSends: true } }), state(app({})), '0.15.0')).toContain('the database lacks the realtime_relay schema, which this version needs at step 1 (relay)')
+      expect(startupRefusal(app({ realtime: { sqlSends: true } }), state(app({})), '0.15.0')).toContain('the database lacks the channels schema, which this version needs at step 1 (sends)')
+    })
+
+    it("refuses the relay's trigger on a sessions table the record names otherwise", () => {
+      const renamed = { modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: true, authStore: settingsStoreNames({ tables: { session: { name: 'sessions' } } }), ...relay })) }
+      expect(startupRefusal(renamed, state(app(relay)), '0.15.0')).toContain(`the realtime relay's sessions is "\"auth\".\"session\"" in the database and "\"auth\".\"sessions\"" now`)
+    })
+
+    it('starts on a record that holds them', () => {
+      const all = app({ status: {}, calls: {}, realtime: { relay: { channels: {} }, processes: 'many', sqlSends: true } })
+      expect(startupRefusal(all, state(all, { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
 })

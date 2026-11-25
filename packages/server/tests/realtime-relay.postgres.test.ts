@@ -17,7 +17,7 @@ import { createAdmin } from '../src/create-admin'
 import { jobsSchemaSql } from '../src/jobs/jobs-module'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { relayClientEvents } from '../src/relay/client-events'
-import { relayMigration } from '../src/relay/relay-schema'
+import { relaySchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { subscription, type SubscriptionEvent } from '../src/webhooks/subscription'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -164,7 +164,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with
     await pg.exec(jobsSchemaSql())
     await pg.exec(tables)
     await pg.exec(captureSchemaSql(resources.map((entry) => entry.toModel())))
-    await pg.exec((await relayMigration(pg.db, auth, false, channels, resources.map((entry) => entry.toModel())))!)
+    await pg.exec(relaySchemaSql(auth, channels, resources.map((entry) => entry.toModel())))
 
     const port = await freePort()
     const appPort = await freePort()

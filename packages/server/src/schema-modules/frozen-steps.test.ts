@@ -18,6 +18,11 @@ const names: Record<SchemaModuleId, ModuleNames> = {
   workflow_custom_steps: { schema: 'workflows' },
   notification_devices: notifications.notification_devices!.names,
   notification_history: notifications.notification_history!.names,
+  status: { schema: 'status', table: 'statuses', users: '"auth"."user"', user_id_type: 'text' },
+  calls: {},
+  relay: { sessions: '"auth"."session"' },
+  realtime_relay: {},
+  channel_sends: {},
 }
 
 // The SHA-256 of each step's statements, by module and step. Steps that call builders shared with other code, such as
@@ -34,6 +39,12 @@ const pinned: Record<string, string> = {
   'workflow_custom_steps 1': '9f4813440406f27c',
   'notification_devices 1': 'fa32cb6858f782fa',
   'notification_history 1': '3e7f2dff386f3b13',
+  'status 1': 'df66cb640ee3510b',
+  'calls 1': '6203854787c707ff',
+  'calls 2': '4006b664d06319be',
+  'relay 1': '3cc7f6bbecb6ec6a',
+  'realtime_relay 1': '38dc32ccc845ebdd',
+  'channel_sends 1': 'a28df48b0ec89ee7',
 }
 
 const digests = () =>

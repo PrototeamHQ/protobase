@@ -8,8 +8,9 @@ const project = (models: MigrationProject['models'], readOnlyQueries = false) =>
 const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {
-  it('leave webhooks, workflows and notifications to the schema modules', () => {
-    expect(names(migrationParts({ ...project([]), webhooks: {}, workflows: {}, notifications: {} }))).toEqual(['computed', 'derived'])
+  it("leave webhooks, workflows, notifications, the relay's sessions and members, several processes and SQL's sends to the schema modules", () => {
+    const realtime = { relay: { channels: {} }, processes: 'many', sqlSends: true } as MigrationProject['realtime']
+    expect(names(migrationParts({ ...project([]), webhooks: {}, workflows: {}, notifications: {}, auth: {} as NonNullable<MigrationProject['auth']>, realtime }))).toEqual(['computed', 'derived'])
   })
   it('add the comments table once a resource takes comments', () => {
     expect(names(migrationParts(project([tickets.toModel()])))).toEqual(['computed', 'derived'])
@@ -17,22 +18,6 @@ describe('the migration parts', () => {
   })
   it("add the query role only with the built-in assistant's read-only queries", () => {
     expect(names(migrationParts(project([tickets.toModel()], true)))).toEqual(['computed', 'query', 'derived'])
-  })
-  it("add the relay's part for an app the platform's switch can move, with sign-in and a live conversation resource whose page has members, as for realtime.relay", () => {
-    const view = { resource: 'tickets', record: { conversation: { resource: 'messages', field: 'ticket_id', sender: 'author_id', time: 'created_at', text: 'body', members: 'members' } } } as unknown as MigrationProject['views'][number]
-    const auth = {} as NonNullable<MigrationProject['auth']>
-    const live = tickets.fields({ id: f.integer(), title: f.text(), members: f.json() }).live().toModel()
-    expect(names(migrationParts({ ...project([live]), views: [view], auth }))).toEqual(['computed', 'derived', 'relay'])
-    expect(names(migrationParts({ ...project([live]), views: [view] }))).toEqual(['computed', 'derived'])
-    expect(names(migrationParts({ ...project([tickets.fields({ id: f.integer(), members: f.json() }).toModel()]), views: [view], auth }))).toEqual(['computed', 'derived'])
-  })
-  it('add the relay with several processes, and the sends of SQL to the channels once turned on', () => {
-    expect(names(migrationParts({ ...project([]), realtime: { processes: 'many', sqlSends: true } }))).toEqual(['computed', 'derived', 'realtime_relay', 'channel_sends'])
-    expect(names(migrationParts({ ...project([]), realtime: { sqlSends: false } }))).toEqual(['computed', 'derived'])
-  })
-  it('add the statuses table only with status', () => {
-    expect(names(migrationParts({ ...project([]), status: {} }))).toEqual(['computed', 'derived', 'status'])
-    expect(names(migrationParts(project([])))).not.toContain('status')
   })
   it('add the unsubscribes table only with unsubscribe', () => {
     expect(names(migrationParts({ ...project([]), unsubscribe: true }))).toEqual(['computed', 'derived', 'unsubscribes'])

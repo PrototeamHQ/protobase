@@ -2,6 +2,7 @@ import { quoteIdent } from '../changes/capture-sql'
 import { qualified } from '../notifications/schema-sql'
 import type { StatusNames } from './options'
 
+// Step 1 of `statusModule`: frozen once released, as every step is.
 /**
  * The statuses table: one row per person who set a status, which goes with the user. A custom text or a clear time
  * not set is NULL, and nothing has a default. Clearing a status deletes its row.

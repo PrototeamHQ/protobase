@@ -25,6 +25,8 @@ export const builtModules = (project: BuiltProject) =>
     webhooks: project.webhooks,
     workflows: project.workflows,
     notifications: project.notifications,
+    status: project.status,
+    calls: project.calls,
     realtime: project.realtime,
     events: project.events,
   })
@@ -44,6 +46,8 @@ export const configModules = async (config: MergedConfig) => {
     webhooks,
     workflows: config.workflows,
     notifications,
+    status: config.status,
+    calls: config.calls,
     realtime: config.realtime,
     events: config.events,
   })

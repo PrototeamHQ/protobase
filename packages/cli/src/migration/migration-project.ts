@@ -20,7 +20,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
   const exported = configExports(resources)
   const models = exported.resources.map((source) => source.toModel())
   const views = exported.views.map((source) => source.toModel())
-  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime, events: config.events }
+  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events }
   return {
     models,
     views,
@@ -32,9 +32,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(webhooks && { webhooks }),
     ...(config.workflows && { workflows: config.workflows }),
     ...(config.realtime && { realtime: config.realtime }),
-    ...(config.calls && { calls: config.calls }),
     ...(notifications && { notifications }),
-    ...(config.status && { status: checkStatusOptions(config.status) }),
     jobs,
     userTables: userTablesOn(config),
     unsubscribe: unsubscribeOn(config),

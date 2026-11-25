@@ -21,7 +21,7 @@ export const releaseSteps = async (project: MigrationProject) => {
   const steps: ReleaseStep[] = auth ? [{ name: 'auth', title: authMigrationTitle, sql: auth }] : []
   const parts: (ReleaseStep & { beforeModules?: boolean })[] = []
   for (const part of migrationParts(project)) {
-    const sql = await part.sql({ authWritten: Boolean(auth) })
+    const sql = await part.sql()
     if (sql !== undefined) parts.push({ name: part.name, title: part.title, sql, ...(part.beforeModules && { beforeModules: true }) })
   }
   const modules: ReleaseStep[] = []

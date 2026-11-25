@@ -7,8 +7,11 @@ import { hasBuckets } from '../computed/buckets-schema'
 import { mailFeedbackResource } from '../mail/feedback/mail-feedback-resource'
 import type { NotificationsOptions } from '../notifications/options'
 import { notificationsTargets } from '../notifications/notifications-targets'
-import type { RealtimeOptions } from '../realtime/relay/realtime-options'
+import { relayed, sqlSends, type RealtimeOptions } from '../realtime/relay/realtime-options'
+import { relayInput } from '../relay/relay-targets'
 import { appRelayChannels, type RelayApp } from '../relay/realtime-channels'
+import type { StatusOptions } from '../status/options'
+import { statusTargets } from '../status/status-targets'
 import type { WebhooksOptions } from '../webhooks/table/options'
 import { webhooksTargets } from '../webhooks/table/webhooks-targets'
 import type { WorkflowsOptions } from '../workflows/options'
@@ -23,12 +26,14 @@ export type ModuleApp = {
   /** The app's own jobs. */
   jobs: readonly unknown[]
   signIn: boolean
-  /** The auth store's names with sign-in on, whose users the notifications tables point at. */
+  /** The auth store's names with sign-in on, whose users the notifications and statuses tables point at and whose sessions the relay's trigger is on. */
   authStore?: StoreNames
   mailFeedback?: boolean
   webhooks?: WebhooksOptions
   workflows?: Pick<WorkflowsOptions, 'schema' | 'storage' | 'customSteps'>
   notifications?: NotificationsOptions
+  status?: StatusOptions
+  calls?: object
   realtime?: RealtimeOptions
   /** Where captured changes live (`events` in `protobase.config.ts`). */
   events?: EventsOptions
@@ -50,15 +55,20 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
   // refreshed by one.
   const changes = captured.some(capturedBy(captured))
   const jobs = app.jobs.length > 0 || changes || comments || aiFields || app.models.some(hasBuckets) || Boolean(app.webhooks || app.workflows || app.notifications || relayChannels)
-  // The history and notices tables live in the changes schema too.
+  // The history and notices tables live in the changes schema too; rings reach open pages through the notices.
   const events = { names: { schema: changesSchema(app.events) }, resources: {} }
   return {
     ...(jobs && { jobs: noInput }),
     ...(changes && { changes: changesInput(captured, app.events) }),
     ...(app.models.some((model) => model.history) && { history: events }),
-    ...(app.models.some((model) => model.live) && { notices: events }),
+    ...((app.models.some((model) => model.live) || Boolean(app.calls)) && { notices: events }),
     ...(app.webhooks && webhooksTargets(app.webhooks, app.events)),
     ...(app.workflows && workflowsTargets(app.workflows)),
     ...(app.notifications && notificationsTargets(app.notifications, app.authStore)),
+    ...(app.status && statusTargets(app.status, app.authStore)),
+    ...(app.calls && { calls: noInput }),
+    ...(relayChannels && { relay: relayInput(relayChannels, app.models, app.authStore) }),
+    ...(relayed(app.realtime) && { realtime_relay: noInput }),
+    ...(sqlSends(app.realtime) && { channel_sends: noInput }),
   }
 }

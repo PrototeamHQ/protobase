@@ -4,8 +4,8 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { captureSchemaSql, createUser, jobsSchemaSql, neededModules, relayMigration } from '@protobase/server'
-import { createAuth } from '@protobase/server/internal'
+import { captureSchemaSql, createUser, jobsSchemaSql, neededModules, relaySchemaSql } from '@protobase/server'
+import { createAuth, settingsStoreNames } from '@protobase/server/internal'
 import { run } from '../../packages/cli/tests/support/auth-project'
 import { recordModules } from '../../packages/cli/tests/support/recorded-modules'
 import { npmWs } from '../../packages/server/tests/support/npm-ws'
@@ -57,7 +57,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
     await database.exec(jobsSchemaSql())
     await database.exec(tables)
     await database.exec(captureSchemaSql(models))
-    await database.exec((await relayMigration(database.db, auth, false, channels, models))!)
+    await database.exec(relaySchemaSql(auth, channels, models))
     await database.exec(`insert into conversations (title) values ('general'); insert into conversation_members (conversation_id, user_id) values (1, '${user}');`)
 
     // A copy of the app, since protobase dev writes its snapshot and state into the project.
@@ -69,8 +69,9 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
     if (recorded.status !== 0) throw new Error(`protobase auth migration failed:\n${recorded.stderr}`)
     const migrations = path.join(projectDir, 'db/migrations')
     for (const file of await readdir(migrations)) await database.exec(await readFile(path.join(migrations, file), 'utf8'))
-    // The jobs schema and change capture made above, as a migration of the app would record them.
-    await recordModules(database.db, neededModules({ models, views: [], jobs: [], signIn: true, realtime: { relay: { channels } } }))
+    // The jobs schema, change capture and relay made above, as a migration of the app would record them, with the
+    // store's names its config's auth gives.
+    await recordModules(database.db, neededModules({ models, views: [], jobs: [], signIn: true, authStore: settingsStoreNames({ schema: 'public' }), realtime: { relay: { channels } } }))
     const port = await freePort()
     base = `http://localhost:${port}`
     dev = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', path.join(projectDir, '.vite-cache')], {
