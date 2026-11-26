@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { bundleLayout, bundleMigrations, bundleNodeModules, manifestFile, type BundleManifest } from '../bundle/manifest'
+import { bundleChanges } from './bundle-changes'
 import { buildBundlePlugins } from './bundle-plugins'
 import { copyMigrations } from './bundle-migrations'
 import { buildConfigBundle } from './config-bundle'
@@ -63,7 +64,7 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 // theme, checked and minified, and its icons; the project's db/migrations as migrations/; and the manifest saying which
 // paths go to the server, which Protobase version the bundle runs on, its plugins, theme, shell and migrations,
 // which icons are the project's own, the native packages the shell runs on in the mobile app, and with a mobile section
-// its app id, plugins and whether it has native push, and for an app that uses or can move to Realtime the app's part of its entry in the Protobase Realtime apps file, as `realtime`. Of the project's server config only the config folder runs at build time, to check its views against its resources; when it declares custom
+// its app id, plugins and whether it has native push, and for an app that uses or can move to Realtime the app's part of its entry in the Protobase Realtime apps file, as `realtime`, and the change model a reader of the WAL maps rows to resources by, as `changes`. Of the project's server config only the config folder runs at build time, to check its views against its resources; when it declares custom
 // components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
 // other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning, strict = false }: DeployBundleInput): Promise<BundleManifest> => {
@@ -99,6 +100,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
     ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}),
     ...(migrations ? { migrations } : {}),
     ...(realtimePart && { realtime: realtimePart }),
+    changes: bundleChanges(models),
   }
   await writeFile(path.join(outDir, manifestFile), `${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
