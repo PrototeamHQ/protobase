@@ -1,9 +1,10 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql, type RawBuilder } from 'kysely'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineJob } from '../src/jobs/define-job'
 import type { JobDefinition } from '../src/jobs/job-types'
 import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/runtime'
 import { functionsVersion } from '../src/jobs/functions-sql'
+import { readJobData } from '../src/jobs/job-data'
 import { jobsModule, jobsSchemaSql } from '../src/jobs/jobs-module'
 import { latestModel } from '../src/schema-modules/module-difference'
 import { noInput } from '../src/schema-modules/schema-module'
@@ -42,7 +43,7 @@ describe('the jobs schema', () => {
     const db = await jobsDb()
     await sql.raw(`comment on function jobs.next_due() is 'Protobase jobs ${functionsVersion - 1}'`).execute(db)
     expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: { functions: functionsVersion - 1 } })
-    await sql`drop function jobs.enqueue`.execute(db)
+    await sql`drop function jobs.enqueue(text, jsonb, timestamptz, text, text, integer, jsonb)`.execute(db)
     expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: { functions: functionsVersion - 1 } })
     await sql.raw(`comment on function jobs.next_due() is 'Protobase jobs ${functionsVersion}'`).execute(db)
     expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: {} })
@@ -77,6 +78,30 @@ describe('jobs from SQL', () => {
     await expect(sql`select jobs.enqueue('ordered')`.execute(db)).rejects.toThrow('Job "ordered" is ordered: pass its group_key')
     const grouped = await sql<{ id: string }>`select jobs.enqueue('ordered', group_key => 'g1') as id`.execute(db)
     expect((await row(db, grouped.rows[0]!.id))!.singleton_key).toBe('g1')
+  })
+
+  it('keeps a payload that holds ~organization as payload, so it never names the organization', async () => {
+    const db = await jobsDb()
+    const read = async (id: string) => readJobData((await row(db, id))!.data)
+    const enqueued = async (query: RawBuilder<unknown>) => ((await query.execute(db)).rows[0] as { id: string }).id
+    expect(await read(await enqueued(sql`select jobs.enqueue('x', '{"~organization":"org_b","payload":1}') as id`))).toEqual({ payload: { '~organization': 'org_b', payload: 1 }, organization: undefined })
+    expect(await read(await enqueued(sql`select jobs.enqueue('x', '{"~organization":"org_b"}', key => 'k') as id`))).toEqual({ payload: { '~organization': 'org_b' }, organization: undefined })
+    // Any other payload is stored as given.
+    expect((await row(db, await enqueued(sql`select jobs.enqueue('x', '{"organization":"org_b"}') as id`)))!.data).toEqual({ organization: 'org_b' })
+    expect((await row(db, await enqueued(sql`select jobs.enqueue('x', '[1]') as id`)))!.data).toEqual([1])
+    expect((await row(db, await enqueued(sql`select jobs.enqueue('x') as id`)))!.data).toBeNull()
+  })
+
+  it("stores the runtime's organization beside the payload, and takes only a string or a number as one", async () => {
+    const db = await jobsDb()
+    const enqueue = async (payload: string | null, organization: string | null) =>
+      (await sql<{ id: string }>`select jobs.enqueue('x', ${payload}::jsonb, null, null, null, 0, ${organization}::jsonb) as id`.execute(db)).rows[0]!.id
+    expect((await row(db, await enqueue('{"n":1}', '"org_a"')))!.data).toEqual({ '~organization': 'org_a', payload: { n: 1 } })
+    expect((await row(db, await enqueue(null, '7')))!.data).toEqual({ '~organization': 7, payload: null })
+    expect((await row(db, await enqueue('{"n":1}', 'null')))!.data).toEqual({ n: 1 })
+    for (const organization of ['{"id":"org_a"}', '["org_a"]', 'true']) {
+      await expect(enqueue('{"n":1}', organization)).rejects.toThrow('Job "x": an organization is a string or a number')
+    }
   })
 })
 

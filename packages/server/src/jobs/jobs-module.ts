@@ -17,7 +17,7 @@ const commentVersion = (comment: string | null) => {
 }
 
 /** Protobase's functions in the jobs schema by the signature `functionsSql` makes them with, so an overload of one is not it. */
-const functionSignatures = ['enqueue(text, jsonb, timestamptz, text, text, integer)', 'next_due()', 'failed_retry()', 'failed_delete()']
+const functionSignatures = ['enqueue(text, jsonb, timestamptz, text, text, integer, jsonb)', 'enqueue(text, jsonb, timestamptz, text, text, integer)', 'next_due()', 'failed_retry()', 'failed_delete()']
 
 /**
  * The functions' part of the jobs schema's model from the version each function's comment names, `undefined` for one

@@ -296,6 +296,25 @@ describe.skipIf(!ready)('organizations', () => {
     expect(seen.slice(1)).toEqual(expect.arrayContaining([{ payload: { n: 1 }, names: ['Anna'] }, { payload: { n: 2 }, names: ['Anna'] }]))
   })
 
+  it("runs a keyed job enqueued from a scoped db in that db's organization, and one from SQL in none, whatever its payload says", async () => {
+    const db = await withMembers()
+    const seen: unknown[] = []
+    const job = defineJob<unknown>({ name: 'list-members', run: async (payload, context) => { seen.push({ payload, names: (await context.db.selectFrom('member').select('name').execute()).map((one) => one.name) }) } })
+    await start(db, [job], { scope })
+    const scoped = scopedDb(db, scope, 'org_a')
+    await job.enqueue(scoped, { '~organization': 'org_b' }, { key: 'one' })
+    await job.enqueueMany(scoped, [{ payload: { '~organization': 'org_b', n: 2 }, options: { key: 'two' } }])
+    await job.enqueue(scoped.unscoped('test'), { n: 3 }, { key: 'three' })
+    await sql`select jobs.enqueue('list-members', '{"~organization":"org_b","payload":4}')`.execute(db)
+    await until(() => expect(seen).toHaveLength(4))
+    expect(seen).toEqual(expect.arrayContaining([
+      { payload: { '~organization': 'org_b' }, names: ['Anna'] },
+      { payload: { '~organization': 'org_b', n: 2 }, names: ['Anna'] },
+      { payload: { n: 3 }, names: [] },
+      { payload: { '~organization': 'org_b', payload: 4 }, names: [] },
+    ]))
+  })
+
   it('runs a job enqueued from an unscoped or plain db in no organization', async () => {
     const db = await withMembers()
     const seen: string[][] = []

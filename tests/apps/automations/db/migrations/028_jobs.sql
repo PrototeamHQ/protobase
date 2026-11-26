@@ -1,0 +1,152 @@
+-- protobase:id 77fe5743-f5b5-42f5-ac20-a004acd4469b
+-- protobase:version 0.14.2
+-- protobase:steps auth=6 two_factor=1 passkeys=2 sign_in_policy=1 staff_sign_in=2
+-- protobase:modules {"jobs":{"lastStep":1,"replaceables":{"functions":5}},"workflows":{"lastStep":1,"replaceables":{"functions":28},"names":{"schema":"workflows"}}}
+-- protobase:model eb224365f3b2c0f7c01af02904c8df240f31b3f42a0d3e7689824d1d9a3dc5f1
+-- protobase:breaks-older-code
+-- Written by `protobase migration` from the config and protobase.snapshot.json; applied with the project's other migrations.
+
+-- It breaks older code: once it is applied, the version before refuses to start on the database, and rolling back to it is blocked.
+-- The jobs schema this version of Protobase needs: it replaces its functions at version 4 with version 5, which the code before does not run on.
+
+-- The jobs schema this version of Protobase needs.
+-- Protobase's functions of the jobs schema.
+create or replace function jobs.enqueue(
+  job_name text,
+  payload jsonb,
+  run_at timestamptz,
+  key text,
+  group_key text,
+  priority integer,
+  organization jsonb
+) returns uuid
+language plpgsql as $$
+declare
+  queue jobs.queue;
+  data jsonb := payload;
+  start timestamptz := coalesce(run_at, jobs.job_now());
+  job_id uuid;
+begin
+  if key is not null and group_key is not null then
+    raise exception 'Job "%": an ordered job takes a group_key and no key', job_name;
+  end if;
+  if organization = 'null'::jsonb then
+    organization := null;
+  end if;
+  if organization is not null and jsonb_typeof(organization) not in ('string', 'number') then
+    raise exception 'Job "%": an organization is a string or a number', job_name;
+  end if;
+  if organization is not null or (jsonb_typeof(payload) = 'object' and payload ? '~organization') then
+    data := jsonb_build_object('~organization', coalesce(organization, 'null'::jsonb), 'payload', coalesce(payload, 'null'::jsonb));
+  end if;
+  perform jobs.create_queue(job_name, jsonb_build_object('policy', case when group_key is null then 'standard' else 'key_strict_fifo' end));
+  select * into queue from jobs.queue where name = job_name;
+  if (queue.policy = 'key_strict_fifo') <> (group_key is not null) then
+    raise exception 'Job "%" %', job_name, case when group_key is null then 'is ordered: pass its group_key' else 'is not ordered: it takes no group_key' end;
+  end if;
+  if key is not null then
+    select id into job_id from jobs.job
+    where name = job_name and singleton_key = key and state < 'active'
+    order by created_on desc limit 1;
+    if found then
+      return job_id;
+    end if;
+  end if;
+  execute format(
+    'insert into jobs.%I (name, data, priority, start_after, singleton_key, retry_limit, retry_delay, retry_backoff,
+       retry_delay_max, expire_seconds, deletion_seconds, keep_until, policy, dead_letter, heartbeat_seconds, upsert_by_key, id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $4 + $12 * interval ''1s'', $13, $14, $15, $16, $17)
+     on conflict do nothing
+     returning id',
+    queue.table_name)
+  using job_name, data, priority, start, coalesce(key, group_key), queue.retry_limit, queue.retry_delay,
+    queue.retry_backoff, queue.retry_delay_max, queue.expire_seconds, queue.deletion_seconds, queue.retention_seconds,
+    queue.policy, queue.dead_letter, queue.heartbeat_seconds, key is not null,
+    case when group_key is null then gen_random_uuid() else uuidv7() end
+  into job_id;
+  -- A concurrent enqueue of the same key inserted first: its job is the one waiting.
+  if job_id is null and key is not null then
+    select id into job_id from jobs.job
+    where name = job_name and singleton_key = key and state < 'active'
+    order by created_on desc limit 1;
+  end if;
+  return job_id;
+end
+$$;
+comment on function jobs.enqueue(text, jsonb, timestamptz, text, text, integer, jsonb) is 'Protobase jobs 5';
+create or replace function jobs.enqueue(
+  job_name text,
+  payload jsonb default null,
+  run_at timestamptz default null,
+  key text default null,
+  group_key text default null,
+  priority integer default 0
+) returns uuid
+language sql as $$
+  select jobs.enqueue(job_name, payload, run_at, key, group_key, priority, null)
+$$;
+comment on function jobs.enqueue(text, jsonb, timestamptz, text, text, integer) is 'Protobase jobs 5';
+
+create or replace function jobs.next_due() returns timestamptz
+language sql stable as $$
+  select min(due) from (
+    select j.start_after as due from jobs.job j
+    where j.state < 'active' and not j.blocked
+      and not (j.policy = 'key_strict_fifo' and exists (
+        select 1 from jobs.job h where h.name = j.name and h.singleton_key = j.singleton_key and h.state = 'failed'))
+    union all
+    select started_on + expire_seconds * interval '1s' from jobs.job where state = 'active'
+  ) jobs
+$$;
+comment on function jobs.next_due() is 'Protobase jobs 5';
+
+create index if not exists job_failed_i on jobs.job (completed_on) where state = 'failed';
+drop view if exists jobs.failed;
+create view jobs.failed as
+select id, name,
+  case when jsonb_typeof(data) = 'object' and data ? '~organization' then data -> 'payload' else data end as payload, retry_count + 1 as attempts,
+  coalesce(output ->> 'message', output -> 'value' ->> 'message', output ->> 'value') as error,
+  output, completed_on as failed_at, created_on as created_at, singleton_key as key, false as retry
+from jobs.job where state = 'failed';
+create or replace function jobs.failed_retry() returns trigger
+language plpgsql as $$
+begin
+  if new.retry then
+    update jobs.job
+    set state = 'retry', retry_limit = retry_limit + 1, completed_on = null,
+      start_after = greatest(start_after, jobs.job_now()), keep_until = greatest(keep_until, jobs.job_now() + interval '14 days')
+    where name = old.name and id = old.id and state = 'failed';
+  end if;
+  return new;
+end
+$$;
+comment on function jobs.failed_retry() is 'Protobase jobs 5';
+create or replace function jobs.failed_delete() returns trigger
+language plpgsql as $$
+begin
+  delete from jobs.job where name = old.name and id = old.id and state = 'failed';
+  return old;
+end
+$$;
+comment on function jobs.failed_delete() is 'Protobase jobs 5';
+create trigger failed_retry instead of update on jobs.failed for each row execute function jobs.failed_retry();
+create trigger failed_delete instead of delete on jobs.failed for each row execute function jobs.failed_delete();
+
+-- protobase:record 77fe5743-f5b5-42f5-ac20-a004acd4469b
+-- The row that records this migration as applied, which the server reads at startup.
+create schema if not exists migrations;
+create table if not exists migrations.history (
+  id text primary key,
+  number integer,
+  name text not null,
+  protobase_version text not null,
+  model jsonb not null,
+  model_hash text not null,
+  physical jsonb not null,
+  additive boolean,
+  sql_hash text,
+  applied_at timestamptz not null default clock_timestamp(),
+  completed_at timestamptz
+);
+create index if not exists history_applied_at on migrations.history (applied_at);
+insert into migrations.history (id, number, name, protobase_version, model, model_hash, physical, additive, sql_hash, completed_at) values ('77fe5743-f5b5-42f5-ac20-a004acd4469b', 28, '028_jobs', '0.14.2', '{"auth":{"schema":"auth","ids":"text","userKeyTable":null,"userMetadata":null,"scopedTablesCarryOrganization":true,"modules":{"auth":{"lastStep":6,"tables":{"user":{"name":"user","scope":"global","columns":{"name":"name","email":"email","email_verified":"email_verified","image":"image","created_at":"created_at","updated_at":"updated_at","role":"role","banned":"banned","ban_reason":"ban_reason","ban_expires":"ban_expires","last_role":"last_role","email_confirmed_at":"email_confirmed_at","two_factor_enabled":"two_factor_enabled"},"indexes":{"user_active_admin_idx":"user_active_admin_idx","user_created_at_id_idx":"user_created_at_id_idx","user_name_id_idx":"user_name_id_idx","user_name_trgm_idx":"user_name_trgm_idx"}},"session":{"name":"session","scope":"global","columns":{"expires_at":"expires_at","token":"token","created_at":"created_at","updated_at":"updated_at","ip_address":"ip_address","user_agent":"user_agent","user_id":"user_id","impersonated_by":"impersonated_by","active_role":"active_role"},"indexes":{"session_user_id_idx":"session_user_id_idx"}},"account":{"name":"account","scope":"global","columns":{"account_id":"account_id","provider_id":"provider_id","user_id":"user_id","access_token":"access_token","refresh_token":"refresh_token","id_token":"id_token","access_token_expires_at":"access_token_expires_at","refresh_token_expires_at":"refresh_token_expires_at","scope":"scope","password":"password","created_at":"created_at","updated_at":"updated_at","single_subject_user_id":"single_subject_user_id"},"indexes":{"account_user_id_idx":"account_user_id_idx","account_provider_id_account_id_uidx":"account_provider_id_account_id_uidx","account_provider_id_single_subject_user_id_uidx":"account_provider_id_single_subject_user_id_uidx"}},"verification":{"name":"verification","scope":"global","columns":{"identifier":"identifier","value":"value","expires_at":"expires_at","created_at":"created_at","updated_at":"updated_at"},"indexes":{"verification_identifier_idx":"verification_identifier_idx","verification_identifier_pattern_idx":"verification_identifier_pattern_idx"}},"jwks":{"name":"jwks","scope":"global","columns":{"public_key":"public_key","private_key":"private_key","created_at":"created_at","expires_at":"expires_at","alg":"alg","crv":"crv"},"indexes":{}},"auth_steps":{"name":"auth_steps","scope":"global","columns":{"module":"module","step":"step","target":"target","applied_at":"applied_at"},"indexes":{}}}},"two_factor":{"lastStep":1,"tables":{"two_factor":{"name":"two_factor","scope":"global","columns":{"secret":"secret","backup_codes":"backup_codes","user_id":"user_id","verified":"verified","failed_verification_count":"failed_verification_count","locked_until":"locked_until"},"indexes":{"two_factor_secret_idx":"two_factor_secret_idx","two_factor_user_id_idx":"two_factor_user_id_idx"}}}},"passkeys":{"lastStep":2,"tables":{"passkey":{"name":"passkey","scope":"global","columns":{"name":"name","public_key":"public_key","user_id":"user_id","credential_id":"credential_id","counter":"counter","device_type":"device_type","backed_up":"backed_up","transports":"transports","created_at":"created_at","aaguid":"aaguid","rp_id":"rp_id"},"indexes":{"passkey_user_id_idx":"passkey_user_id_idx","passkey_credential_id_idx":"passkey_credential_id_idx","passkey_rp_id_idx":"passkey_rp_id_idx"}}}},"sign_in_policy":{"lastStep":1,"tables":{"sign_in_policy":{"name":"sign_in_policy","scope":"global","columns":{"password":"password","email_code":"email_code","passkey":"passkey","two_factor":"two_factor","staff_access":"staff_access","platform_sign_in":"platform_sign_in","created_at":"created_at","created_by":"created_by"},"indexes":{}}}},"staff_sign_in":{"lastStep":2,"tables":{"staff_sign_in":{"name":"staff_sign_in","scope":"global","columns":{"user_id":"user_id","user_email":"user_email","staff":"staff","staff_name":"staff_name","staff_subject":"staff_subject","issuer":"issuer","reason":"reason","session_id":"session_id","started_at":"started_at","expires_at":"expires_at","ended_at":"ended_at"},"indexes":{"staff_sign_in_session_id_idx":"staff_sign_in_session_id_idx","staff_sign_in_started_at_idx":"staff_sign_in_started_at_idx"}}}}}},"modules":{"jobs":{"lastStep":1,"replaceables":{"functions":5}},"workflows":{"lastStep":1,"replaceables":{"functions":28},"names":{"schema":"workflows"}}}}'::jsonb, 'eb224365f3b2c0f7c01af02904c8df240f31b3f42a0d3e7689824d1d9a3dc5f1', '{"auth":["auth","auth.account","auth.account.access_token","auth.account.access_token_expires_at","auth.account.account_id","auth.account.created_at","auth.account.id","auth.account.id_token","auth.account.password","auth.account.provider_id","auth.account.refresh_token","auth.account.refresh_token_expires_at","auth.account.scope","auth.account.single_subject_user_id","auth.account.updated_at","auth.account.user_id","auth.account_provider_id_account_id_uidx","auth.account_provider_id_single_subject_user_id_uidx","auth.account_user_id_idx","auth.auth_steps","auth.auth_steps.applied_at","auth.auth_steps.id","auth.auth_steps.module","auth.auth_steps.step","auth.auth_steps.target","auth.jwks","auth.jwks.alg","auth.jwks.created_at","auth.jwks.crv","auth.jwks.expires_at","auth.jwks.id","auth.jwks.private_key","auth.jwks.public_key","auth.passkey","auth.passkey.aaguid","auth.passkey.backed_up","auth.passkey.counter","auth.passkey.created_at","auth.passkey.credential_id","auth.passkey.device_type","auth.passkey.id","auth.passkey.name","auth.passkey.public_key","auth.passkey.rp_id","auth.passkey.transports","auth.passkey.user_id","auth.passkey_credential_id_idx","auth.passkey_rp_id_idx","auth.passkey_user_id_idx","auth.session","auth.session.active_role","auth.session.created_at","auth.session.expires_at","auth.session.id","auth.session.impersonated_by","auth.session.ip_address","auth.session.token","auth.session.updated_at","auth.session.user_agent","auth.session.user_id","auth.session_user_id_idx","auth.sign_in_policy","auth.sign_in_policy.created_at","auth.sign_in_policy.created_by","auth.sign_in_policy.email_code","auth.sign_in_policy.id","auth.sign_in_policy.passkey","auth.sign_in_policy.password","auth.sign_in_policy.platform_sign_in","auth.sign_in_policy.staff_access","auth.sign_in_policy.two_factor","auth.staff_sign_in","auth.staff_sign_in.ended_at","auth.staff_sign_in.expires_at","auth.staff_sign_in.id","auth.staff_sign_in.issuer","auth.staff_sign_in.reason","auth.staff_sign_in.session_id","auth.staff_sign_in.staff","auth.staff_sign_in.staff_name","auth.staff_sign_in.staff_subject","auth.staff_sign_in.started_at","auth.staff_sign_in.user_email","auth.staff_sign_in.user_id","auth.staff_sign_in_session_id_idx","auth.staff_sign_in_started_at_idx","auth.two_factor","auth.two_factor.backup_codes","auth.two_factor.failed_verification_count","auth.two_factor.id","auth.two_factor.locked_until","auth.two_factor.secret","auth.two_factor.user_id","auth.two_factor.verified","auth.two_factor_secret_idx","auth.two_factor_user_id_idx","auth.user","auth.user.ban_expires","auth.user.ban_reason","auth.user.banned","auth.user.created_at","auth.user.email","auth.user.email_confirmed_at","auth.user.email_verified","auth.user.id","auth.user.image","auth.user.last_role","auth.user.name","auth.user.role","auth.user.two_factor_enabled","auth.user.updated_at","auth.user_active_admin_idx","auth.user_created_at_id_idx","auth.user_name_id_idx","auth.user_name_trgm_idx","auth.verification","auth.verification.created_at","auth.verification.expires_at","auth.verification.id","auth.verification.identifier","auth.verification.updated_at","auth.verification.value","auth.verification_identifier_idx","auth.verification_identifier_pattern_idx"]}'::jsonb, false, '1c6963de24c14f829c0a4b2153d7d61223b1415bb8b3ba3cdf80f94e495438d8', clock_timestamp());

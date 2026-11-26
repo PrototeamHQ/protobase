@@ -80,6 +80,9 @@ export type JobsRuntime = JobsEnqueuer & {
 // pg-boss with what a Protobase host needs off: it never creates or migrates its schema (the project's migrations do),
 // keeps no instance registry, runs no scheduler (Protobase's own recurring jobs do), rebuilds no index and takes no
 // session state, so it works through a pooler in transaction mode. LISTEN/NOTIFY stays off for the same reason.
+/** A `jsonb` parameter of `jobs.enqueue`: the value as JSON, or SQL null for none. */
+const asJson = (value: unknown) => (value === undefined || value === null ? null : JSON.stringify(value))
+
 const createBoss = (db: BossDb, work: boolean) =>
   new PgBoss({
     db,
@@ -171,7 +174,8 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
     if (!definitions.has(name)) throw new Error(`Job "${name}" is not among the app's jobs; export it from the module protobase.config.ts passes as \`jobs\``)
     const checked = await validatePayload(definition, payload)
     if ('invalid' in checked) throw new Error(checked.invalid)
-    const data = jobData(checked.value, organizationOf(target))
+    const organization = organizationOf(target)
+    const data = jobData(checked.value, organization)
     // pg-boss runs a group's jobs by their transaction's start, then by id: an ordered job takes its id from the
     // database's uuidv7(), which rises within a session, so the jobs one transaction enqueues run in that order, those
     // of jobs.enqueue() among them.
@@ -184,7 +188,7 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
     const keyed = async (key: string) => {
       if (options.mode === 'replace') return (await boss.upsert(name, data as object, send)).jobs[0]
       const runAt = send.startAfter === undefined ? sql`null` : send.startAfter instanceof Date ? sql`${send.startAfter}::timestamptz` : sql`${sql.id(jobsSchema, 'job_now')}() + ${send.startAfter} * interval '1 second'`
-      const { rows } = await sql<{ id: string | null }>`select ${sql.id(jobsSchema, 'enqueue')}(${name}, ${data === null ? null : JSON.stringify(data)}::jsonb, ${runAt}, ${key}, null, ${send.priority ?? 0}) as id`.execute(target)
+      const { rows } = await sql<{ id: string | null }>`select ${sql.id(jobsSchema, 'enqueue')}(${name}, ${asJson(checked.value)}::jsonb, ${runAt}, ${key}, null, ${send.priority ?? 0}, ${asJson(organization)}::jsonb) as id`.execute(target)
       return rows[0]!.id
     }
     const id = options.key === undefined ? await boss.send(name, data as object, send) : await keyed(options.key)
@@ -205,7 +209,7 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
         if (options.mode === 'replace') throw new Error(`Job "${name}": enqueueMany keeps a waiting job of a key; replace one with enqueue`)
         const checked = await validatePayload(definition, payload)
         if ('invalid' in checked) throw new Error(checked.invalid)
-        return { data: jobData(checked.value, organization), send: sendOptions(definition.options, options), key: options.key }
+        return { payload: checked.value, data: jobData(checked.value, organization), send: sendOptions(definition.options, options), key: options.key }
       }),
     )
     const ids: string[] = []
@@ -220,10 +224,10 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
     const keyed = sends.flatMap((job, place) => (job.key === undefined ? [] : [{ ...job, place }]))
     if (keyed.length > 0) {
       const at = (job: (typeof keyed)[number]) => job.send.startAfter
-      const { rows } = await sql<{ id: string | null }>`select ${sql.id(jobsSchema, 'enqueue')}(${name}, j.data, coalesce(j.run_at, ${sql.id(jobsSchema, 'job_now')}() + j.delay * interval '1 second'), j.key, null, j.priority) as id
-        from unnest(${keyed.map((job) => (job.data === null ? null : JSON.stringify(job.data)))}::jsonb[], ${keyed.map((job) => (at(job) instanceof Date ? at(job) : null))}::timestamptz[],
+      const { rows } = await sql<{ id: string | null }>`select ${sql.id(jobsSchema, 'enqueue')}(${name}, j.payload, coalesce(j.run_at, ${sql.id(jobsSchema, 'job_now')}() + j.delay * interval '1 second'), j.key, null, j.priority, ${asJson(organization)}::jsonb) as id
+        from unnest(${keyed.map((job) => asJson(job.payload))}::jsonb[], ${keyed.map((job) => (at(job) instanceof Date ? at(job) : null))}::timestamptz[],
           ${keyed.map((job) => (typeof at(job) === 'number' ? at(job) : null))}::float8[], ${keyed.map((job) => job.key!)}::text[], ${keyed.map((job) => job.send.priority ?? 0)}::integer[])
-          with ordinality as j(data, run_at, delay, key, priority, place)
+          with ordinality as j(payload, run_at, delay, key, priority, place)
         order by j.place`.execute(target)
       rows.forEach((row, n) => {
         if (!row.id) throw new Error(`Job "${name}" was not enqueued`)

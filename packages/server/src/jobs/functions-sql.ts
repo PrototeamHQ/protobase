@@ -1,7 +1,7 @@
 import { organizationKey } from './job-data'
 
 /** Bumped whenever the objects below change, so the next migration writes them again. */
-export const functionsVersion = 4
+export const functionsVersion = 5
 
 /** The comment each Protobase function in the jobs schema carries, which the startup check reads. */
 export const functionsComment = `Protobase jobs ${functionsVersion}`
@@ -11,28 +11,41 @@ export const functionNames = ['enqueue', 'next_due', 'failed_retry', 'failed_del
 
 /**
  * `jobs.enqueue(name, payload, run_at, key, group_key, priority)`: a job from SQL, such as a trigger, in the caller's
- * transaction. It inserts what pg-boss's `send()` does, with the queue's retry settings; it creates a queue that no
- * worker has created yet. A `key` keeps one waiting job, as `mode: 'dedupe'` does, and an ordered job takes its group
- * as `group_key`, and an id from `uuidv7()`, which rises within a database session: pg-boss runs a group's jobs by their
- * transaction's start, then by id, so the jobs one transaction enqueues run in that order. Tied to the pg-boss schema
- * version, which the startup check pins.
+ * transaction, working in no organization. It inserts what pg-boss's `send()` does, with the queue's retry settings; it
+ * creates a queue that no worker has created yet. A `key` keeps one waiting job, as `mode: 'dedupe'` does, and an
+ * ordered job takes its group as `group_key`, and an id from `uuidv7()`, which rises within a database session: pg-boss
+ * runs a group's jobs by their transaction's start, then by id, so the jobs one transaction enqueues run in that order.
+ * The runtime's keyed enqueue passes an `organization` too, a JSON string or number, which only that overload takes, so
+ * a payload never names one: its data is built as `jobData` builds it. Tied to the pg-boss schema version, which the
+ * startup check pins.
  */
 const enqueue = (schema: string) => `create or replace function ${schema}.enqueue(
   job_name text,
-  payload jsonb default null,
-  run_at timestamptz default null,
-  key text default null,
-  group_key text default null,
-  priority integer default 0
+  payload jsonb,
+  run_at timestamptz,
+  key text,
+  group_key text,
+  priority integer,
+  organization jsonb
 ) returns uuid
 language plpgsql as $$
 declare
   queue ${schema}.queue;
+  data jsonb := payload;
   start timestamptz := coalesce(run_at, ${schema}.job_now());
   job_id uuid;
 begin
   if key is not null and group_key is not null then
     raise exception 'Job "%": an ordered job takes a group_key and no key', job_name;
+  end if;
+  if organization = 'null'::jsonb then
+    organization := null;
+  end if;
+  if organization is not null and jsonb_typeof(organization) not in ('string', 'number') then
+    raise exception 'Job "%": an organization is a string or a number', job_name;
+  end if;
+  if organization is not null or (jsonb_typeof(payload) = 'object' and payload ? '${organizationKey}') then
+    data := jsonb_build_object('${organizationKey}', coalesce(organization, 'null'::jsonb), 'payload', coalesce(payload, 'null'::jsonb));
   end if;
   perform ${schema}.create_queue(job_name, jsonb_build_object('policy', case when group_key is null then 'standard' else 'key_strict_fifo' end));
   select * into queue from ${schema}.queue where name = job_name;
@@ -54,7 +67,7 @@ begin
      on conflict do nothing
      returning id',
     queue.table_name)
-  using job_name, payload, priority, start, coalesce(key, group_key), queue.retry_limit, queue.retry_delay,
+  using job_name, data, priority, start, coalesce(key, group_key), queue.retry_limit, queue.retry_delay,
     queue.retry_backoff, queue.retry_delay_max, queue.expire_seconds, queue.deletion_seconds, queue.retention_seconds,
     queue.policy, queue.dead_letter, queue.heartbeat_seconds, key is not null,
     case when group_key is null then gen_random_uuid() else uuidv7() end
@@ -67,6 +80,18 @@ begin
   end if;
   return job_id;
 end
+$$;
+comment on function ${schema}.enqueue(text, jsonb, timestamptz, text, text, integer, jsonb) is '${functionsComment}';
+create or replace function ${schema}.enqueue(
+  job_name text,
+  payload jsonb default null,
+  run_at timestamptz default null,
+  key text default null,
+  group_key text default null,
+  priority integer default 0
+) returns uuid
+language sql as $$
+  select ${schema}.enqueue(job_name, payload, run_at, key, group_key, priority, null)
 $$;
 comment on function ${schema}.enqueue(text, jsonb, timestamptz, text, text, integer) is '${functionsComment}';`
 
