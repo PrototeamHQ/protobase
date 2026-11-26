@@ -1,6 +1,6 @@
 import { sql, type Kysely } from 'kysely'
 import { allModules } from '../names/modules-on'
-import { resolveNames } from '../names/resolve-names'
+import { resolveNames, tableNameOf } from '../names/resolve-names'
 import { ddl } from './ddl'
 import { stepsOfVersions } from './legacy-record'
 import { statementsSql } from './migration-sql'
@@ -53,11 +53,22 @@ const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
   return run().finally(() => tx.rollback().execute())
 }
 
-/** Whether the store has any table of the steps besides the user table, which may be another system's. */
+/**
+ * The names of the steps' tables, those of the modules that are off included, besides the user table, which may be
+ * another system's. Each is named on its own, so a table of a module that is off never clashes with one that is on,
+ * such as a user table named organization; the store's names already refused a name two tables that are on share.
+ */
+export const stepTableNames = ({ names }: StoreNames) => {
+  const tables = names.input.tables ?? {}
+  const user = names.table('user').name
+  const named = Object.values(moduleSteps).flatMap((steps) => steps.flatMap((step) => step.tables.map((table) => tableNameOf(tables, table))))
+  return new Set(named.filter((name) => name !== user))
+}
+
+/** Whether the store has any table of the steps besides the user table (`stepTableNames`). */
 export const storeHasTables = async (db: Kysely<any>, names: StoreNames) => {
-  const tables = new Set((await columnsIn(db, names.schema)).map((column) => column.table))
-  const every = resolveNames({ ...names.names.input, modules: allModules })
-  return Object.values(moduleSteps).some((steps) => steps.some((step) => step.tables.some((table) => tables.has(every.tables[table]!.name))))
+  const candidates = stepTableNames(names)
+  return (await columnsIn(db, names.schema)).some((column) => candidates.has(column.table))
 }
 
 type Adoption = { adopted: Array<{ migration: LegacyVersion; columns: Column[] }>; pending: LegacyVersion[] }
