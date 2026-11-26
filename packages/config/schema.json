@@ -6798,6 +6798,17 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "organization": {
+          "description": "`'when-null'`: a record whose field is null reaches every member of its tenant's organization, such as a public\nchannel beside private ones that list their members; an empty list still reaches nobody. Needs a `.tenant` resource\nand organizations.",
+          "anyOf": [
+            {
+              "const": "when-null"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [

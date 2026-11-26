@@ -40,6 +40,17 @@ export const conversationView = (resource: string, { members, typing }: { member
 export const directsModel = () =>
   resource('directs').table('directs').fields({ id: f.integer(), members: f.json(), deleted_at: f.timestamp().optional() }).primaryKey((r) => r.id).softDelete((r) => r.deleted_at).live().toModel()
 
+/** A workspace's channels: public ones, whose `member_ids` is null, reach its whole organization; private ones list theirs. */
+export const workspaceChannelsModel = () =>
+  resource('channels')
+    .table('channels')
+    .fields({ id: f.integer(), organization_id: f.text(), member_ids: f.json().optional(), deleted_at: f.timestamp().optional() })
+    .primaryKey((r) => r.id)
+    .tenant((r) => r.organization_id)
+    .softDelete((r) => r.deleted_at)
+    .live()
+    .toModel()
+
 let sequence = 0
 
 /** A change as the dispatch hands it on. */

@@ -1,5 +1,6 @@
 import { qualified } from '../notifications/schema-sql'
 import type { ResourceReplaceable, SchemaModule } from '../schema-modules/schema-module'
+import { dropMemberTableSql, memberTableSql, organizationMembersVersion, type MemberTable } from './organization-members-sql'
 import { readRelay } from './read-relay'
 import { dropListedSql, listedTableSql, membersFunctionsSql, membersTableSql, membersVersion, type ListedTable } from './realtime-members-sql'
 import { sessionsSql, sessionsVersion } from './sessions-sql'
@@ -18,10 +19,25 @@ const members: ResourceReplaceable = {
 }
 
 /**
+ * The trigger on the auth store's member table that moves people in and out of the channels that reach their whole
+ * organization, written while a channel resource has such records, under the key `member`.
+ */
+const organization: ResourceReplaceable = {
+  name: 'organization',
+  title: "The triggers that follow who is in an organization for the relay's organization-wide channels",
+  version: organizationMembersVersion,
+  compatibleFrom: organizationMembersVersion,
+  sql: (_names, input) => statements(memberTableSql(input as MemberTable)),
+  drop: (_names, table) => statements(dropMemberTableSql(qualified({ schema: table.schema, table: table.name }))),
+  keptWhileOthers: false,
+}
+
+/**
  * What the realtime relay needs of the app's database: the trigger that closes a deleted sign-in session's sockets, on
  * the sessions table the auth store names (`names.sessions`, as SQL names it), which queues a job, so it is written
  * after the auth store's steps and the jobs schema; and `realtime.members` with the triggers that keep it from the
- * channel records that list their members. Its table is never dropped.
+ * channel records that list their members, and with organization-wide channels the trigger that follows the auth
+ * store's member table. Its table is never dropped.
  */
 export const relayModule: SchemaModule = {
   label: 'the realtime relay',
@@ -32,6 +48,6 @@ export const relayModule: SchemaModule = {
     { name: 'sessions', title: "The trigger that closes a deleted session's sockets", version: sessionsVersion, compatibleFrom: sessionsVersion, sql: (names) => statements(sessionsSql(names.sessions!)) },
     { name: 'members', title: 'The functions that keep realtime.members', version: membersVersion, compatibleFrom: membersVersion, sql: () => statements(membersFunctionsSql) },
   ],
-  resourceReplaceables: [members],
-  read: readRelay(members),
+  resourceReplaceables: [members, organization],
+  read: readRelay(members, organization),
 }

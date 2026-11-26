@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { relayModels } from './relay-models'
-import { chatModels, chatRelay, directsModel } from './testing/chat-models'
+import { chatModels, chatRelay, directsModel, workspaceChannelsModel } from './testing/chat-models'
 
 describe('relayModels', () => {
   it("places captured records on their channel resource's channels, by its own key and by relations to it", () => {
@@ -44,6 +44,24 @@ describe('relayModels', () => {
   it('refuses a mentions field no noticed resource has', () => {
     const channels = { conversations: { ...chatRelay.channels.conversations!, mentions: 'tagged' } }
     expect(() => relayModels({ ...chatRelay, channels }, chatModels())).toThrow('no captured resource noticed on the channel has a field "tagged"')
+  })
+})
+
+describe("relayModels of a channel whose records reach their organization when their members field is null", () => {
+  it('keeps the tenant field the organization is read from', () => {
+    const models = relayModels({ channels: { channels: { members: { field: 'member_ids', organization: 'when-null' } } } }, [workspaceChannelsModel()])
+    expect(models.channels.get('channels')?.listed).toMatchObject({ field: 'member_ids', tenant: 'organization_id' })
+  })
+
+  it('refuses a resource without a tenant, whose records have no organization', () => {
+    expect(() => relayModels({ channels: { directs: { members: { field: 'members', organization: 'when-null' } } } }, [directsModel()])).toThrow(
+      'realtime.relay.channels.directs.members.organization: "directs" has no tenant field (.tenant), so a record has no organization to reach',
+    )
+  })
+
+  it('reaches no organization without the option', () => {
+    const models = relayModels({ channels: { channels: { members: { field: 'member_ids' } } } }, [workspaceChannelsModel()])
+    expect(models.channels.get('channels')?.listed?.tenant).toBeUndefined()
   })
 })
 

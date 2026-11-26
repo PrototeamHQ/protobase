@@ -57,23 +57,41 @@ const membersCommands = (models: RelayModels, change: ResourceChange) =>
     ]
   })
 
-// Who a channel record lists in one state of it, and on which channel; a soft-deleted record lists nobody.
-const listedIn = (listed: ListedModel, record: Row | undefined) => {
+/** By organization, its members' user ids, as `membersOf` reads them. */
+export type OrganizationMembership = Map<string, string[]>
+
+// Whether one state of a channel record reaches its whole organization: its members field is null, it is not soft-deleted.
+const reachesOrganization = (listed: ListedModel, record: Row) =>
+  listed.tenant !== undefined && !present(record[listed.field]) && !(listed.model.softDelete !== undefined && present(record[listed.model.softDelete]))
+
+/** The organizations whose members a batch's channel records reach, before or after their change, which `membersOf` reads. */
+export const organizationsNoticed = (models: RelayModels, changes: readonly ResourceChange[]) => {
+  const found = changes.flatMap((change) => {
+    const listed = models.channels.get(change.resource)?.listed
+    if (!listed?.tenant) return []
+    return [change.before, change.after].flatMap((record) => (record && reachesOrganization(listed, record) && present(record[listed.tenant!]) ? [String(record[listed.tenant!])] : []))
+  })
+  return [...new Set(found)]
+}
+
+// Who a channel record lists in one state of it, and on which channel: its organization's members when it reaches the
+// whole organization; a soft-deleted record lists nobody.
+const listedIn = (listed: ListedModel, record: Row | undefined, organizations: OrganizationMembership) => {
   if (!record) return
   const value = record[listed.field]
   const deleted = listed.model.softDelete !== undefined && present(record[listed.model.softDelete])
-  const users = Array.isArray(value) && !deleted ? value.filter(present).map(String) : []
+  const users = reachesOrganization(listed, record) ? (organizations.get(String(record[listed.tenant!])) ?? []) : Array.isArray(value) && !deleted ? value.filter(present).map(String) : []
   return { channel: channelName(listed.model.name, record[listed.model.primaryKey[0]!]), users: new Set(users) }
 }
 
 const missing = (from: Set<string> | undefined, other: Set<string> | undefined) => [...(from ?? [])].filter((user) => !other?.has(user))
 
 // For a channel record that lists its members: the people its change adds and removes, by diffing who it lists before and after.
-const listedCommands = (models: RelayModels, change: ResourceChange): MembersCommand[] => {
+const listedCommands = (models: RelayModels, change: ResourceChange, organizations: OrganizationMembership): MembersCommand[] => {
   const listed = models.channels.get(change.resource)?.listed
   if (!listed) return []
-  const before = change.operation === 'create' || change.operation === 'undelete' ? undefined : listedIn(listed, change.before)
-  const after = change.operation === 'delete' ? undefined : listedIn(listed, change.after)
+  const before = change.operation === 'create' || change.operation === 'undelete' ? undefined : listedIn(listed, change.before, organizations)
+  const after = change.operation === 'delete' ? undefined : listedIn(listed, change.after, organizations)
   const moved = before && after && before.channel !== after.channel
   const added = after ? missing(after.users, moved ? undefined : before?.users) : []
   const removed = before ? missing(before.users, moved ? undefined : after?.users) : []
@@ -106,8 +124,8 @@ const notice = (models: RelayModels, change: ResourceChange, channel: string, me
   }
 }
 
-// Tells only the people added to a channel, on `people`, which channel it is: nobody else learns who joined what.
-const joinedCommand = (sequence: string, add: MembersCommand): PublishCommand => ({
+/** Tells only the people added to a channel, on `people`, which channel it is: nobody else learns who joined what. */
+export const joinedCommand = (sequence: string, add: MembersCommand): PublishCommand => ({
   kind: 'publish',
   id: `${sequence}:${add.channel}:${joinedEvent}`,
   channel: peopleChannel,
@@ -124,11 +142,13 @@ const reaches = (command: PublishCommand, open: ReadonlySet<string>) => (command
  * first and hears `joined` of it on `people`, then each channel the record was or is on hears one notice, then a person
  * who left it leaves. A channel with members hears it only through its members as the app's database has them
  * (`members`), and the person who joined or left; an open one through everyone joined to it, and only while its record is public (`open`), so sockets that joined
- * it before hear nothing once it is not. A notice of a channel with no one to reach is left out.
+ * it before hear nothing once it is not. A record that reaches its whole organization, before or after its change,
+ * moves its organization's members (`organizations`) as a list moves the people it lists. A notice of a channel with no
+ * one to reach is left out.
  */
-export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers, open: ReadonlySet<string>): RelayCommand[] =>
+export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers, open: ReadonlySet<string>, organizations: OrganizationMembership = new Map()): RelayCommand[] =>
   changes.flatMap((change) => {
-    const moved = [...membersCommands(models, change), ...listedCommands(models, change)]
+    const moved = [...membersCommands(models, change), ...listedCommands(models, change, organizations)]
     const notices = noticedChannels(models, change)
       .map((channel) => notice(models, change, channel, members, moved))
       .filter((command) => reaches(command, open))

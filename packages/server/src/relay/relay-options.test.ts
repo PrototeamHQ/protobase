@@ -23,6 +23,13 @@ describe('checkRelayOptions', () => {
     expect(() => checkRelayOptions({ ...chatRelay, channels: {} })).toThrow('realtime.relay.channels must name at least one channel resource')
   })
 
+  it("takes a members field that reaches the record's organization when null, and refuses any other value or key", () => {
+    const listed = (members: object) => ({ ...chatRelay, channels: { channels: { members } } }) as never
+    expect(() => checkRelayOptions(listed({ field: 'member_ids', organization: 'when-null' }))).not.toThrow()
+    expect(() => checkRelayOptions(listed({ field: 'member_ids', organization: 'always' }))).toThrow("realtime.relay.channels.channels.members must be { resource, channel, user } or { field, organization?: 'when-null' }")
+    expect(() => checkRelayOptions(listed({ field: 'member_ids', tenant: 'organization_id' }))).toThrow('realtime.relay.channels.channels.members must be')
+  })
+
   it('refuses members without their fields', () => {
     expect(() => checkRelayOptions({ ...chatRelay, channels: { conversations: { members: { resource: 'conversation_members', channel: '', user: 'user_id' } } } })).toThrow(
       'realtime.relay.channels.conversations.members must be { resource, channel, user }',

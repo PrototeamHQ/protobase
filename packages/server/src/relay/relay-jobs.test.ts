@@ -14,7 +14,7 @@ describe('relayJobs', () => {
       return 1
     })
     const report = vi.fn()
-    const [send] = relayJobs({ client, sessionEnd: async () => undefined, report }).jobs
+    const [send] = relayJobs({ client, sessionEnd: async () => undefined, moves: async () => [], report }).jobs
     await send!.options.run({ commands: [{ kind: 'add', channel: 'c/1', users: ['u1'] }, { kind: 'remove', channel: 'c/1', users: ['u1'] }] } as never, context)
     expect(client.send).toHaveBeenCalledTimes(2)
     expect(report).toHaveBeenCalledWith(refusal)
@@ -24,20 +24,20 @@ describe('relayJobs', () => {
     const client = fakeClient(async () => {
       throw new Error('down')
     })
-    const [send] = relayJobs({ client, sessionEnd: async () => undefined, report: vi.fn() }).jobs
+    const [send] = relayJobs({ client, sessionEnd: async () => undefined, moves: async () => [], report: vi.fn() }).jobs
     await expect(send!.options.run({ commands: [{ kind: 'add', channel: 'c/1', users: ['u1'] }] } as never, context)).rejects.toThrow('down')
   })
 
   it("closes each deleted session's sockets", async () => {
     const client = fakeClient()
-    const [, closeSessions] = relayJobs({ client, sessionEnd: async () => undefined, report: vi.fn() }).jobs
+    const [, closeSessions] = relayJobs({ client, sessionEnd: async () => undefined, moves: async () => [], report: vi.fn() }).jobs
     await closeSessions!.options.run({ sessions: ['s1', 's2'] } as never, context)
     expect(client.closeSession.mock.calls).toEqual([['s1'], ['s2']])
   })
 
   it("closes an expired or gone session's sockets at its expiry", async () => {
     const client = fakeClient()
-    const [, , expiry] = relayJobs({ client, sessionEnd: async () => new Date(Date.now() - 1000), report: vi.fn() }).jobs
+    const [, , expiry] = relayJobs({ client, sessionEnd: async () => new Date(Date.now() - 1000), moves: async () => [], report: vi.fn() }).jobs
     await expiry!.options.run({ session: 's1' } as never, context)
     expect(client.closeSession).toHaveBeenCalledWith('s1')
   })
@@ -45,10 +45,23 @@ describe('relayJobs', () => {
   it('waits for the new expiry of a session that was extended', async () => {
     const client = fakeClient()
     const later = new Date(Date.now() + 60_000)
-    const [, , expiry] = relayJobs({ client, sessionEnd: async () => later, report: vi.fn() }).jobs
+    const [, , expiry] = relayJobs({ client, sessionEnd: async () => later, moves: async () => [], report: vi.fn() }).jobs
     const enqueue = vi.spyOn(expiry!, 'enqueue').mockResolvedValue(undefined as never)
     await expiry!.options.run({ session: 's1' } as never, context)
     expect(client.closeSession).not.toHaveBeenCalled()
     expect(enqueue).toHaveBeenCalledWith(db, { session: 's1' }, { key: 's1', runAt: later })
+  })
+
+  it("queues the moves of an organization's members after the sends queued before, and nothing without any", async () => {
+    const add = { kind: 'add' as const, channel: 'channels/1', users: ['ann'] }
+    const moves = vi.fn(async (_db: unknown, pairs: readonly unknown[]) => (pairs.length > 0 ? [add] : []))
+    const [send, , , organizationMembers] = relayJobs({ client: fakeClient(), sessionEnd: async () => undefined, moves, report: vi.fn() }).jobs
+    const enqueue = vi.spyOn(send!, 'enqueue').mockResolvedValue(undefined as never)
+    const job = { db, job: { id: 'job-1' } } as never
+    await organizationMembers!.options.run({ members: [{ organization: 'o1', user: 'ann' }] } as never, job)
+    expect(moves).toHaveBeenCalledWith(db, [{ organization: 'o1', user: 'ann' }], 'job-1')
+    expect(enqueue).toHaveBeenCalledWith(db, { commands: [add] }, { group: 'relay' })
+    await organizationMembers!.options.run({ members: [] } as never, job)
+    expect(enqueue).toHaveBeenCalledTimes(1)
   })
 })
