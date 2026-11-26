@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from './index'
+import { recordText } from './record-page'
 import { view } from './view'
 
 const channels = resource('channels')
@@ -25,5 +26,19 @@ describe('view.record({ conversation })', () => {
   it('refuses a subtitle or members field the record does not have', () => {
     expect(() => view<typeof channels>('channels').record({ conversation: { ...conversation, subtitle: 'about' } }).toModel(channels.toModel())).toThrow('conversation subtitle names field "about"')
     expect(() => view<typeof channels>('channels').record({ conversation: { ...conversation, members: 'people' } }).toModel(channels.toModel())).toThrow('conversation members names field "people"')
+  })
+
+  it('refuses a placeholder or empty text that names a field the record does not have', () => {
+    expect(() => view<typeof channels>('channels').record({ conversation: { ...conversation, placeholder: 'Message #{{title}}' } }).toModel(channels.toModel())).toThrow('conversation placeholder names field "title"')
+    expect(() => view<typeof channels>('channels').record({ conversation: { ...conversation, empty: 'The start of {{name}} {{about}}' } }).toModel(channels.toModel())).toThrow('conversation empty names field "about"')
+    expect(view<typeof channels>('channels').record({ conversation: { ...conversation, placeholder: 'Message #{{name}}', empty: 'Nothing yet' } }).toModel(channels.toModel()).record).toEqual({ conversation: { ...conversation, placeholder: 'Message #{{name}}', empty: 'Nothing yet' } })
+  })
+})
+
+describe('recordText', () => {
+  it('fills each {{field}} from the record, an empty one as empty text, and keeps a plain string', () => {
+    expect(recordText('Message #{{name}}', { name: 'general' })).toBe('Message #general')
+    expect(recordText('This is the start of #{{ name }}.', { name: null })).toBe('This is the start of #.')
+    expect(recordText('Message the channel', { name: 'general' })).toBe('Message the channel')
   })
 })

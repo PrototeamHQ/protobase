@@ -54,6 +54,14 @@ describe('conversationPageErrors', () => {
     expect(conversationPageErrors({ ...page, resource: 'nope' }, 'channels', models)).toEqual(['unknown resource "nope"'])
   })
 
+  it('refuses a placeholder or empty text that names a field the record does not have', () => {
+    expect(conversationPageErrors({ ...page, placeholder: 'Message #{{name}}', empty: 'The start of #{{name}}' }, 'channels', models)).toEqual([])
+    expect(conversationPageErrors({ ...page, placeholder: 'Message #{{title}}', empty: '{{name}} {{body}}' }, 'channels', models)).toEqual([
+      'placeholder: names field "title", which channels does not have',
+      'empty: names field "body", which channels does not have',
+    ])
+  })
+
   it("needs a read position kept per reader, of a message's integer key", () => {
     expect(conversationPageErrors({ ...page, readPosition: { ...readPosition, message: 'note' } }, 'channels', models)).toEqual(['readPosition: message: "note" is text; it holds a message\'s key, an integer'])
     expect(conversationPageErrors(page, 'channels', { ...models, read_positions: { ...positions, author: undefined } })).toEqual(["readPosition: read_positions has no .author(), so it cannot keep each reader's own position"])

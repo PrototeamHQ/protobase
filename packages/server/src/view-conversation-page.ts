@@ -1,5 +1,6 @@
 import { messageFieldsProblems, messageTextProblems } from '@protobase/layout'
 import type { ConversationPageModel, ReadPositionModel, ResourceModel } from '@protobase/schema'
+import { textPlaceholders } from '@protobase/schema/internal'
 import { attachmentsErrors, pruneAttachments } from './view-conversation-attachments'
 import { keyFieldErrors, ownerErrors, sensitiveErrors, typeErrors } from './view-conversation'
 import { deleteErrors, readsDeleteCondition } from './view-conversation-delete'
@@ -9,6 +10,10 @@ import { matchErrors } from './view-related'
 import { readable, typedErrors } from './view-typed-field'
 
 const datedTypes = ['date', 'timestamp']
+
+// The box's hint and the empty conversation's text fill their `{{field}}`s from the record, so each names a field it has
+const recordTextErrors = (prop: string, text: string | undefined, record: ResourceModel) =>
+  textPlaceholders(text ?? '').filter((name) => !Object.hasOwn(record.fields, name)).map((name) => `${prop}: names field "${name}", which ${record.name} does not have`)
 
 // The reader finds their own position by its author, which the server sets, so it is filterable rather than sendable
 const authorErrors = (model: ResourceModel) => {
@@ -60,6 +65,8 @@ export const conversationPageErrors = (page: ConversationPageModel, resource: st
     ...typedErrors(target, 'mentions', page.mentions, ['json'], 'mentions are a JSON field of user ids'),
     ...typedErrors(record, 'subtitle', page.subtitle, ['text'], 'a subtitle is a text field'),
     ...typedErrors(record, 'members', page.members, ['json'], 'members are a JSON field of user ids'),
+    ...recordTextErrors('placeholder', page.placeholder, record),
+    ...recordTextErrors('empty', page.empty, record),
     ...(page.readPosition ? readPositionErrors(page.readPosition, resource, target, models).map((error) => `readPosition: ${error}`) : []),
     ...(page.reactions ? reactionsErrors(page.reactions, page.resource, models).map((error) => `reactions: ${error}`) : []),
     ...(page.attachments ? attachmentsErrors(page.attachments, page.resource, models).map((error) => `attachments: ${error}`) : []),

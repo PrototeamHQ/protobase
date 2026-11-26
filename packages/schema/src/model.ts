@@ -1948,9 +1948,9 @@ export type ConversationPageModel = {
    * messages. The page opens the function's socket with the record's key as `key`, `/api/functions/<call>?key=<key>`.
    */
   call?: string
-  /** The hint in the empty box. */
+  /** The hint in the empty box; each `{{field}}` fills from the record, such as `'Message #{{name}}'`. */
   placeholder?: string
-  /** What the conversation says while it has no messages. */
+  /** What the conversation says while it has no messages; each `{{field}}` fills from the record. */
   empty?: string
   /**
    * Says who else types, above the box, and tells the others while the reader types: `typing` events on the record's
