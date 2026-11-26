@@ -71,6 +71,10 @@ export default defineConfig({ events: { schema: 'row_changes' } })
 
 ## What the write-ahead log carries
 
+:::caution[In development]
+The messages are written, but Protobase itself does not read them yet: live updates and events still go through [the outbox](#the-outbox).
+:::
+
 A reader of the database's write-ahead log (WAL), such as a logical replication client, can name each changed row's resource and who changed it without any table of Protobase's: Protobase writes it there as logical decoding messages, transactional ones, so each arrives with its transaction's rows, in their order, and only once it commits.
 
 - **`protobase_actor`**: the API emits it at the start of every write transaction it runs for a caller, a single write, a batch, a comment, a write through the [PostgREST-compatible API](/reference/supabase-rest/) or the storage API, in the same statement that sets the transaction's settings, so it costs no round trip. Its content is the caller as `changes.actor` holds it, such as `{"id":"u1","roles":["admin"]}`; the PostgREST-compatible and storage APIs name their signed-in user only, with no roles, and emit none for an anonymous caller or the app's own key. A write of the app's own background work, or from outside the API, has no `protobase_actor` message.
