@@ -153,6 +153,17 @@ The schema holding the outbox and the capture function that resources' [events](
 export default defineConfig({ events: { schema: 'app_changes' } })
 ```
 
+## events.stream
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Whether `protobase migration` writes the event triggers that put each schema change into the write-ahead log as a logical message, which a reader of the log meets in order with the rows. Creating them takes a superuser. See [What the write-ahead log carries](/reference/events/#what-the-write-ahead-log-carries).
+
+```ts
+export default defineConfig({ events: { stream: true } })
+```
+
 ## history.days
 
 - **Type:** `number`, a positive whole number
