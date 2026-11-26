@@ -16,6 +16,12 @@ export type RelayMembers = {
 export type RelayListedMembers = {
   /** The channel resource's JSON field listing its members' user ids, such as `members`. */
   field: string
+  /**
+   * `'when-null'`: a record whose field is null reaches every member of its tenant's organization, such as a public
+   * channel beside private ones that list their members; an empty list still reaches nobody. Needs a `.tenant` resource
+   * and organizations.
+   */
+  organization?: 'when-null'
 }
 
 /** A resource whose records are channels on the relay, `<resource>/<key>`. */
@@ -130,7 +136,10 @@ const checkEvents = (where: string, events: unknown) => {
 const membersShape = (members: RelayChannelOptions['members']) => {
   if (members === undefined) return true
   if (typeof members !== 'object' || members === null) return false
-  if ('field' in members) return nonEmpty(members.field) && Object.keys(members).length === 1
+  if ('field' in members) {
+    const { field, organization, ...rest } = members
+    return nonEmpty(field) && (organization === undefined || organization === 'when-null') && Object.keys(rest).length === 0
+  }
   return nonEmpty(members.resource) && nonEmpty(members.channel) && nonEmpty(members.user)
 }
 
@@ -144,7 +153,7 @@ export const checkRelayOptions = (options: RealtimeRelayOptions): RealtimeRelayS
   }
   if (typeof options.channels !== 'object' || options.channels === null || Object.keys(options.channels).length === 0) throw new Error('realtime.relay.channels must name at least one channel resource')
   for (const [name, channel] of Object.entries(options.channels)) {
-    if (!membersShape(channel?.members)) throw new Error(`realtime.relay.channels.${name}.members must be { resource, channel, user } or { field }`)
+    if (!membersShape(channel?.members)) throw new Error(`realtime.relay.channels.${name}.members must be { resource, channel, user } or { field, organization?: 'when-null' }`)
     if (channel?.mentions !== undefined && !nonEmpty(channel.mentions)) throw new Error(`realtime.relay.channels.${name}.mentions must name a field`)
     if (channel?.events !== undefined) checkEvents(`realtime.relay.channels.${name}.events`, channel.events)
   }

@@ -8,6 +8,8 @@ import { jsonBody, jsonOnly } from '../notifications/history-request'
 import { badRequest, forbidden, HttpProblem, notFound } from '../problem'
 import type { AdminEnv, Session } from '../types'
 import { memberships } from './members-sql'
+import { organizationMemberships } from './organization-audience'
+import type { OrganizationMembers } from './organization-members'
 import { peopleChannel } from './presence-commands'
 import type { RelayJobs } from './relay-jobs'
 import { hasMembers, type RelayModels } from './relay-models'
@@ -37,19 +39,28 @@ const requestedChannels = (body: unknown) => {
   return [...new Set(channels as string[])]
 }
 
-type TicketRouteInput = { deps: Deps; options: RealtimeRelaySettings; models: RelayModels; jobs: RelayJobs; sessionEnd: (session: string) => Promise<Date | undefined> }
+type TicketRouteInput = {
+  deps: Deps
+  options: RealtimeRelaySettings
+  models: RelayModels
+  /** The auth store's member table, when a channel's records reach their whole organization. */
+  organizations: OrganizationMembers | undefined
+  jobs: RelayJobs
+  sessionEnd: (session: string) => Promise<Date | undefined>
+}
 
 /**
  * `POST /` with `{ channels?: [...] }`: a connect ticket for the relay, `{ ticket, url, channels, expiresAt }`, with the
  * channels it lists, the same list as its claims. A signed-in person's ticket names their sign-in session, so a device
  * that connects adds no session, and lists every channel they are a member of, as the members resources have it, and
  * `people`, which every signed-in person has and their contacts' presence is published on; a visitor's names an
- * anonymous session of its own and only receives. Both list the open channels asked for whose records are public, read
+ * anonymous session of its own and only receives. A channel whose record reaches its whole organization counts as one
+ * they are a member of in each organization they are a member of. Both list the open channels asked for whose records are public, read
  * by the anonymous role, as a read of the record decides it; one there is none of, one that is not public and one of a
  * resource with members are refused alike with `404`. A signed-in person's ticket queues the close of their session's
  * sockets at its expiry, once for each session.
  */
-export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: TicketRouteInput) => {
+export const ticketRoutes = ({ deps, options, models, organizations, jobs, sessionEnd }: TicketRouteInput) => {
   const app = new Hono<AdminEnv>()
 
   // An open channel of a public record, one a visitor may read, so no one's own access to it can end while their
@@ -83,7 +94,7 @@ export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: Ticket
     const open: string[] = []
     for (const name of asked) open.push(await openChannel(name))
     const subject = await subjectOf(session)
-    const member = 'user' in subject ? [peopleChannel, ...(await memberships(deps.db, models, subject.user))] : []
+    const member = 'user' in subject ? [peopleChannel, ...(await memberships(deps.db, models, subject.user)), ...(await organizationMemberships(deps.db, models, organizations, subject.user))] : []
     const channels = [...new Set([...member, ...open])]
     if (channels.length > maxTicketChannels) throw new HttpProblem(422, 'too-many-channels', 'Unprocessable Content', `The ticket would list ${channels.length} channels, over the ${maxTicketChannels} the relay takes`)
     const { ticket, expiresAt } = await signTicket(options, subject, channels)

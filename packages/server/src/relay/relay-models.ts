@@ -2,13 +2,16 @@ import type { ResourceModel } from '@protobase/schema'
 import { relatedTarget } from '@protobase/schema/internal'
 import { capturedBy } from '../changes/capture-sql'
 import { presenceModel, type PresenceModel } from './presence-model'
-import type { RealtimeRelaySettings, RelayMembers } from './relay-options'
+import type { RealtimeRelaySettings, RelayListedMembers, RelayMembers } from './relay-options'
 
 /** A channel resource's members resource, by its model. */
 export type MembersModel = { model: ResourceModel; field: string; user: string }
 
-/** A channel resource whose records list their members' user ids in a JSON field, kept in `realtime.members`. */
-export type ListedModel = { model: ResourceModel; field: string }
+/**
+ * A channel resource whose records list their members' user ids in a JSON field, kept in `realtime.members`; with
+ * `tenant`, the field of a record whose members field is null reaches every member of that organization instead.
+ */
+export type ListedModel = { model: ResourceModel; field: string; tenant?: string }
 
 /** A channel resource as the relay reads it: who is in each channel, when it has members, and its mentions field. */
 export type RelayChannel = { members?: MembersModel; listed?: ListedModel; mentions?: string }
@@ -49,7 +52,7 @@ export const relayModels = (options: Pick<RealtimeRelaySettings, 'channels' | 'p
     const model = byName.get(name)
     if (!model) throw new Error(`${at}: the app has no resource "${name}"`)
     if (model.primaryKey.length !== 1) throw new Error(`${at}: a channel resource needs a key of one field, as a channel is named <resource>/<key>`)
-    const listed = channel.members && 'field' in channel.members ? listedModel(channel.members.field, model, `${at}.members`) : undefined
+    const listed = channel.members && 'field' in channel.members ? listedModel(channel.members, model, `${at}.members`) : undefined
     if (listed && !captured(model)) throw new Error(`${at}.members: the changes of "${name}" are not captured, so the relay would not hear who joins or leaves: declare .live() on it`)
     const own = channel.members && !('field' in channel.members) ? membersModel(channel.members, name, byName, `${at}.members`) : undefined
     if (own && !captured(own.model)) throw new Error(`${at}.members: the changes of "${own.model.name}" are not captured, so the relay would not hear of them: declare .live() on it`)
@@ -88,10 +91,12 @@ export const listedFieldProblem = (model: ResourceModel, field: string) => {
   return
 }
 
-const listedModel = (field: string, model: ResourceModel, at: string): ListedModel => {
+const listedModel = ({ field, organization }: RelayListedMembers, model: ResourceModel, at: string): ListedModel => {
   const problem = listedFieldProblem(model, field)
   if (problem) throw new Error(`${at}.field: ${problem}`)
-  return { model, field }
+  if (organization === undefined) return { model, field }
+  if (!model.tenant) throw new Error(`${at}.organization: "${model.name}" has no tenant field (.tenant), so a record has no organization to reach`)
+  return { model, field, tenant: model.tenant }
 }
 
 const membersModel = (members: RelayMembers, channel: string, byName: Map<string, ResourceModel>, at: string): MembersModel => {

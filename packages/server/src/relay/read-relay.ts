@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { resourceEntry } from '../schema-modules/resource-difference'
 import type { ModuleInput, ModuleModel, ResourceEntry, ResourceReplaceable } from '../schema-modules/schema-module'
+import { memberTriggersFound, type MemberTable } from './organization-members-sql'
 import { argsOf, membersVersion, realtimeMembersTable, realtimeSchema, rowTrigger, truncateTrigger, type ListedTable } from './realtime-members-sql'
 import { sessionsCurrent, sessionsVersion } from './sessions-sql'
 
@@ -47,13 +48,35 @@ const keeps = (found: readonly FoundTrigger[], listed: ListedTable, rel: string)
 }
 
 /**
+ * The organization trigger as the database has it for `input`: at the entry it writes when it stands on the member
+ * table `input` names with all three triggers of this version, at no digest when it is older, so it is written again,
+ * and at no digest under the table it is on when that is another table, so it is dropped.
+ */
+const readOrganization = async (db: Db, organization: ResourceReplaceable, input: ModuleInput) => {
+  const found = await memberTriggersFound(db)
+  const given = input.resources[organization.name]?.member
+  const [rel] = given ? await regclassText(db, [(given.input as MemberTable).table]) : []
+  const entries: Record<string, ResourceEntry> = {}
+  for (const trigger of found) {
+    if (given && trigger.table === rel) {
+      const entry = resourceEntry(organization, input.names, given)
+      entries.member = trigger.current ? entry : { ...entry, digest: '' }
+      continue
+    }
+    entries[given ? `member on ${trigger.table}` : 'member'] = { version: organization.version, digest: '', table: { schema: trigger.schema, name: trigger.name } }
+  }
+  return entries
+}
+
+/**
  * The relay's objects as the database has them for `input`: step 1 once `realtime.members` is there, the sessions
  * trigger at its version when it stands on the sessions table with this version's function, the members functions at
  * the version their comment names, and each listed resource whose table has the triggers this version writes, else at
  * no digest, so they are written again; and the row triggers on tables no listed resource has, by the resource their
- * first argument names, so they are dropped. Refuses members functions of a version no step records.
+ * first argument names, so they are dropped; and the organization trigger (`readOrganization`). Refuses members
+ * functions of a version no step records.
  */
-export const readRelay = (members: ResourceReplaceable) => async (db: Db, input: ModuleInput): Promise<ModuleModel | undefined> => {
+export const readRelay = (members: ResourceReplaceable, organization: ResourceReplaceable) => async (db: Db, input: ModuleInput): Promise<ModuleModel | undefined> => {
   const [state] = (
     await sql<{ table: boolean; comment: string | null }>`select to_regclass(${realtimeMembersTable}) is not null as table,
       (select obj_description(p.oid, 'pg_proc') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${realtimeSchema} and p.proname = 'members_kept' and p.pronargs = 0) as comment`.execute(db)
@@ -82,10 +105,15 @@ export const readRelay = (members: ResourceReplaceable) => async (db: Db, input:
     const key = entries[resource] ? `${resource} on ${trigger.table}` : resource
     entries[key] = { version: members.version, digest: '', table: { schema: trigger.schema, name: trigger.relname } }
   }
+  const organizationEntries = await readOrganization(db, organization, input)
+  const resources = {
+    ...(Object.keys(entries).length > 0 && { [members.name]: entries }),
+    ...(Object.keys(organizationEntries).length > 0 && { [organization.name]: organizationEntries }),
+  }
   return {
     lastStep: state!.table ? 1 : 0,
     replaceables: { ...(sessions && { sessions: sessionsVersion }), ...(version !== undefined && { members: membersVersion }) },
     names: input.names,
-    ...(Object.keys(entries).length > 0 && { resources: { [members.name]: entries } }),
+    ...(Object.keys(resources).length > 0 && { resources }),
   }
 }

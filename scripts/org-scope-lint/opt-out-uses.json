@@ -13,5 +13,6 @@
   "packages/server/src/organization-scope/auth-request-organization.ts": { "everyOrganization": 1 },
   "packages/server/src/organization-scope/sign-in-organization.ts": { "everyOrganization": 1 },
   "packages/server/src/personal-mail/shared-sender-store.ts": { "acrossOrganizations": 1 },
+  "packages/server/src/relay/organization-members.ts": { "unscoped": 2 },
   "packages/server/src/webhooks/table/owner-roles.ts": { "acrossOrganizations": 1 }
 }
