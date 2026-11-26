@@ -161,7 +161,7 @@ describe('the query runner', () => {
   it('refuses startup while the role can read an auth table', async () => {
     const attempt = db.transaction().execute(async (trx) => {
       await sql`do $$ begin execute format('grant usage on schema secrets to %I', left(current_database(), 57) || '_query'); execute format('grant select on secrets.session to %I', left(current_database(), 57) || '_query'); end $$`.execute(trx)
-      await expect(checkQueryRoleSafety(trx, authTables)).rejects.toThrow("The query role of the assistant's read-only queries can read the auth schema.")
+      await expect(checkQueryRoleSafety(trx, authTables)).rejects.toThrow("The query role of read-only queries can read the auth schema.")
       throw rolledBack
     })
     await expect(attempt).rejects.toBe(rolledBack)

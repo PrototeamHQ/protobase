@@ -107,7 +107,7 @@ describe('neededModules', () => {
     expect(ids(app([], { realtime: { processes: 'one', sqlSends: false } }))).toEqual([])
   })
 
-  it("needs the query module, last, with the built-in assistant's read-only queries, its grants by resource but an auth table's", () => {
+  it("needs the query module, last, with read-only queries, of the built-in assistant or the MCP endpoint's sql, its grants by resource but an auth table's", () => {
     const people = resource('people').table('auth.user').fields({ id: f.text() }).primaryKey((r) => r.id)
     const targets = neededModules(app([tickets.toModel(), people.toModel()], { readOnlyQueries: true, jobs: [{}], signIn: true, authStore: settingsStoreNames({}) }))
     expect(Object.keys(targets)).toEqual(['jobs', 'query'])

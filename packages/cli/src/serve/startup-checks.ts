@@ -20,6 +20,6 @@ export const checkStartup = async (project: BuiltProject, db: Db) => {
   await checkMigrationRecord(db, builtRuntimeModel(project), protobaseVersion)
   await project.auth?.pinnedOrganization()
   if (project.auth) await checkResourcesOutsideAuthStore(db, models, project.auth)
-  if (readOnlyQueriesOn(project.options?.assistant, process.env)) await checkQueryRoleSafety(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
+  if (readOnlyQueriesOn(project.options ?? {}, process.env)) await checkQueryRoleSafety(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
   checkProjectRelay({ ...project, models, views: exported.views.map((view) => view.toModel()) }, process.env)
 }
