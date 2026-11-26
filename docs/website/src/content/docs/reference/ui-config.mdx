@@ -702,8 +702,8 @@ view<typeof channels>('channels').record({
 | `subtitle` | A text field of the record shown beside its title, such as a channel's topic. |
 | `members` | A JSON field of the record holding user ids: the header names the other people in it, each with their presence and [status](/reference/status/#in-the-app), the status text in full beside one person and on hover beside several. The record is titled after them everywhere, as the [`members` title rule](#titles-per-reader) does. |
 | `readPosition` | Where each reader's read position is kept: `{ resource, field, message }`. |
-| `placeholder` | The hint in the empty box. |
-| `empty` | What the conversation says while it has no messages. |
+| `placeholder` | The hint in the empty box. Each `{{field}}` in it fills from the record, so `'Message #{{name}}'` names the channel; a field the record has no value for fills as nothing, and one the record does not have is refused. |
+| `empty` | What the conversation says while it has no messages, its `{{field}}`s filled from the record as in `placeholder`, such as `'This is the start of #{{name}}.'`. |
 | `edit` | `true`: a message's author changes its text and mentions in place, as the message resource's update access allows. |
 | `delete` | `true`: anyone the message resource's delete access allows deletes a message, after confirming; or `{ unless }`, a condition on the message's own fields that keeps it, such as `reply_count > 0`. |
 | `reactions` | Emoji reactions under each message: `{ resource, field, user, emoji, labels }`. |

@@ -1,4 +1,5 @@
 import type { ConversationPageModel } from '@protobase/schema'
+import { recordText } from '@protobase/schema/internal'
 import { useOptionalAuth } from '../../auth/auth-provider'
 import { useMembers } from '../../people/use-members'
 import { keyValue } from '../create/create-values'
@@ -31,7 +32,7 @@ type Props = { page: ConversationPageModel; scope: LayoutRecord }
  * threads, the thread its address names (`?thread=`) opens in a panel beside it. With `call`, the record's call shows
  * while the page joins it (`?call=join`), between the header and the messages: beside them, or above them at mobile
  * width, with a thread's panel after both, covering the screen at mobile width. Key it by the record, so another one
- * starts afresh.
+ * starts afresh. Its box's hint and its text while it has no messages fill their `{{field}}`s from the record.
  */
 export const ConversationPage = ({ page, scope }: Props) => {
   const { resources, views } = useAdminMeta()
@@ -49,6 +50,7 @@ export const ConversationPage = ({ page, scope }: Props) => {
   useViewChannel(channel)
   const typing = useConversationTyping(page.typing, scope.model.name, scope.key, me)
   const typed = useTypingBox(typing, null)
+  const filled = (template: string | undefined) => (template === undefined ? undefined : recordText(template, scope.record))
   return (
     <FullArea>
       <div className="flex min-h-0 min-w-0">
@@ -57,7 +59,7 @@ export const ConversationPage = ({ page, scope }: Props) => {
           <div className="flex min-h-0 min-w-0 flex-1 max-md:flex-col">
             <ConversationCall page={page} scope={scope} />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <ConversationMessages page={page} model={model} recordKey={scope.key} me={me} position={position} threadTo={threaded && thread.to} searchPeople={searchPeople} />
+              <ConversationMessages page={page} empty={filled(page.empty)} model={model} recordKey={scope.key} me={me} position={position} threadTo={threaded && thread.to} searchPeople={searchPeople} />
               {position.error !== undefined && <p className="shrink-0 px-4 text-sm text-danger-text">{text('positionNotSaved')}</p>}
               {typing && <TypingNames users={typing.typers(null)} />}
               <div className="shrink-0 px-3 pb-3">
@@ -65,7 +67,7 @@ export const ConversationPage = ({ page, scope }: Props) => {
                   resource={page.resource}
                   field={page.text}
                   values={{ [page.field]: keyValue(scope.model, scope.key) }}
-                  placeholder={page.placeholder}
+                  placeholder={filled(page.placeholder)}
                   searchPeople={searchPeople}
                   mentions={page.mentions}
                   attachments={page.attachments}

@@ -18,6 +18,8 @@ import { text } from './messages'
 
 type Props = {
   page: ConversationPageModel
+  /** What the conversation says while it has no messages, filled from the record; the framework's own text without one. */
+  empty?: string
   model: ResourceModel
   recordKey: string
   me: string | undefined
@@ -37,7 +39,7 @@ type Props = {
  * time; the first messages show only once theirs are read and the text's renderer has loaded, so nothing they open on
  * moves down as those arrive.
  */
-export const ConversationMessages = ({ page, model, recordKey, me, position, threadTo, searchPeople }: Props) => {
+export const ConversationMessages = ({ page, empty, model, recordKey, me, position, threadTo, searchPeople }: Props) => {
   const { resources, views } = useAdminMeta()
   const senders = [page.sender]
   const list = useList(model.name, { ...messagesRequest(page, recordKey), labels: listLabels(resources, views, model, senders) })
@@ -66,7 +68,7 @@ export const ConversationMessages = ({ page, model, recordKey, me, position, thr
       <ChatThread
         length={oldestFirst.length}
         followKey={own?.key}
-        empty={page.empty ?? text('noMessages')}
+        empty={empty ?? text('noMessages')}
         onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined}
         loadingEarlier={list.isFetchingNextPage}
         onReadToEnd={readTo && readEnd !== undefined ? () => readTo(readEnd) : undefined}
