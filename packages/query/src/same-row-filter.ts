@@ -42,8 +42,12 @@ export const sameRowPlan = (model: ResourceModel, scope: Scope | undefined, filt
     const matched = read.match.nullable ? [sql<SqlBool>`${columnRef(read.match)} is not null`] : []
     const index = pending(sql`select ${columnRef(read.match)} from ${tableSource(read.model)} where ${sql.join([...read.conditions, ...matched, held], sql` and `)}`)
     return (resolved) => {
-      const linked = among(read.link, resolved[index]!, numeric(read.match) || numeric(read.link))
-      return node.kind === 'isNull' ? { kind: 'not', arg: linked, span } : linked
+      const keys = resolved[index]!
+      const linked = among(read.link, keys, numeric(read.match) || numeric(read.link))
+      if (node.kind !== 'isNull') return linked
+      // A row that links to nothing has an empty lookup, as compiled, which `not in` alone leaves unknown
+      const unlinked: CheckedFilter = { kind: 'not', arg: linked, span }
+      return read.link.nullable && keys.length > 0 ? { kind: 'or', args: [{ kind: 'isNull', field: read.link, span }, unlinked], span } : unlinked
     }
   }
 
@@ -62,7 +66,7 @@ export const sameRowPlan = (model: ResourceModel, scope: Scope | undefined, filt
   }
 
   const parent = (read: ParentRead): Part => {
-    if (!read.parent) return () => (read.field.nullable ? { kind: 'isNull', field: read.field, span } : none)
+    if (!read.parent) return () => (read.field.nullable && !read.related ? { kind: 'isNull', field: read.field, span } : none)
     const subfilter = read.related?.filter ? [compileFilter(read.related.model, read.related.filter)] : []
     const index = pending(parentKeys(read.parent, read.related?.page, [...readConditions(read.parent.model, read.parent.scope), ...subfilter]))
     return (resolved) => {
@@ -78,7 +82,8 @@ export const sameRowPlan = (model: ResourceModel, scope: Scope | undefined, filt
     const field = full.fields[name]!
     if (scope?.tenantValues) return [() => among(field, scope.tenantValues!.map(String), numeric(field))]
     if (scope?.tenantValue === undefined) throw new Error(`Resource "${model.name}" is tenant-scoped; pass scope.tenantValue`)
-    return [() => ({ kind: 'compare', op: '=', field, value: literalOf(String(scope.tenantValue), numeric(field)), span })]
+    // `in`, not `=`, which reads a `*` in text as a wildcard
+    return [() => among(field, [String(scope.tenantValue)], numeric(field))]
   }
 
   const softDelete = full.softDelete ?? model.softDelete

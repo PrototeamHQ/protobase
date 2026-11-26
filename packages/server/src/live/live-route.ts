@@ -30,7 +30,8 @@ const later = (id: string, than: string) => BigInt(id) > BigInt(than)
 
 /**
  * `GET /live`: the changes of the live resources the caller may read, as they come, keys only. `visibleTo` says which
- * notices a caller hears of (`visibleNotices`).
+ * notices a caller hears of (`visibleNotices`), for the access the caller connected with: a `refresh` ends the stream,
+ * so the page connects again from its cursor as its access is now.
  */
 export const liveRoutes = (feed: NoticeFeed, visibleTo: (session: Session) => Promise<(notice: Notice) => boolean>) => {
   const app = new Hono<AdminEnv>()
@@ -74,8 +75,12 @@ export const liveRoutes = (feed: NoticeFeed, visibleTo: (session: Session) => Pr
       }, heartbeatMs)
       while (!stream.aborted) {
         const event = queue.shift()
-        if (event) await stream.writeSSE({ data: JSON.stringify(event) })
-        else await new Promise<void>((resolve) => (wake = resolve))
+        if (!event) {
+          await new Promise<void>((resolve) => (wake = resolve))
+          continue
+        }
+        await stream.writeSSE({ data: JSON.stringify(event) })
+        if (event.type === 'refresh') return
       }
     }
 

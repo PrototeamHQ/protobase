@@ -1,7 +1,6 @@
 import { Hono, type Context } from 'hono'
 import type { Deps } from '../deps'
 import { keyFromPath } from '../key'
-import { selectedFields } from '../params'
 import { pickFields } from '../rows'
 import { readRecord } from '../read-service'
 import type { Entry } from '../registry'
@@ -37,10 +36,9 @@ export const recordRoutes = (deps: Deps) => {
       return c.json(await readRecordCalls(deps, entry, c.get('session'), key))
     }
     if (c.req.param('key').endsWith(':mentionable')) return c.json(await mentionable(deps, entry, c.get('session'), keyFromPath(c, entry, ':mentionable'), c.req.query()))
-    const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), c.req.query('show_deleted') === 'true', asksLive(c))
     // `fields` is checked against the caller's own readable fields
-    const columns = selectedFields({ ...entry.model, fields: Object.fromEntries(Object.keys(found.record).map((name) => [name, entry.model.fields[name]!])) }, c.req.query('fields'))
-    return c.json({ ...pickFields(found.record, columns), etag: found.etag, permissions: found.permissions }, 200, { ETag: found.etag, ...liveHeaders(found.token) })
+    const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), c.req.query('show_deleted') === 'true', asksLive(c), c.req.query('fields'))
+    return c.json({ ...pickFields(found.record, found.columns), etag: found.etag, permissions: found.permissions }, 200, { ETag: found.etag, ...liveHeaders(found.token) })
   })
 
   // POST /{resource}/{key}:reveal with `{ "field": "iban" }`: one sensitive value, published to the audit queue

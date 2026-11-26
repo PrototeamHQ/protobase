@@ -30,7 +30,7 @@ describe('sameRowPlan', () => {
   it('keeps the soft delete, the tenant, the row filter and the filter as they are, reading nothing', () => {
     const planned = sameRowPlan(messages, { tenantValue: 7, rowFilter: checked(messages, where.eq('author', 'ann')) }, checked(messages, where.eq('body', 'hi')))
     expect(planned!.subqueries).toEqual([])
-    expect(text(planned)).toBe('isNull(deleted_at) AND tenant_id = 7 AND author = "ann" AND body = "hi"')
+    expect(text(planned)).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND author = "ann" AND body = "hi"')
   })
 
   it('keeps every tenant of a read across tenants', () => {
@@ -45,13 +45,13 @@ describe('sameRowPlan', () => {
   it("resolves a parent the caller must read to the keys they read, by its subquery", () => {
     const planned = sameRowPlan(messages, { tenantValue: 7, parents: [{ field: messages.fields.channel_id!, parent: channelsParent }] }, undefined)
     expect(compiled(planned!.subqueries[0]!)).toEqual({ sql: 'select "t"."id" from "channels" as "t" where "t"."deleted_at" is null and "t"."tenant_id" = $1', parameters: [7] })
-    expect(text(planned, [['1', '2']])).toBe('isNull(deleted_at) AND tenant_id = 7 AND in(channel_id, 1, 2)')
+    expect(text(planned, [['1', '2']])).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND in(channel_id, 1, 2)')
   })
 
   it('keeps the rows naming no parent of a nullable relation, and none when no parent is read', () => {
     const planned = sameRowPlan(messages, { tenantValue: 7, parents: [{ field: messages.fields.thread_id!, parent: channelsParent }] }, undefined)
-    expect(text(planned, [[]])).toBe('isNull(deleted_at) AND tenant_id = 7 AND (isNull(thread_id) OR isNull(id))')
-    expect(text(sameRowPlan(messages, { tenantValue: 7, parents: [{ field: messages.fields.channel_id! }] }, undefined))).toBe('isNull(deleted_at) AND tenant_id = 7 AND isNull(id)')
+    expect(text(planned, [[]])).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND (isNull(thread_id) OR isNull(id))')
+    expect(text(sameRowPlan(messages, { tenantValue: 7, parents: [{ field: messages.fields.channel_id! }] }, undefined))).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND isNull(id)')
   })
 
   it('resolves a lookup term to the links of the records that hold it, and its emptiness to the others', () => {
@@ -62,7 +62,25 @@ describe('sameRowPlan', () => {
       'select "t"."id" from "channels" as "t" where "t"."deleted_at" is null and "t"."tenant_id" = $1 and "t"."name" = $2',
       'select "t"."id" from "channels" as "t" where "t"."deleted_at" is null and "t"."tenant_id" = $1 and "t"."name" is not null',
     ])
-    expect(text(planned, [['3'], ['3', '4']])).toBe('isNull(deleted_at) AND tenant_id = 7 AND (in(channel_id, 3) OR NOT in(channel_id, 3, 4))')
+    expect(text(planned, [['3'], ['3', '4']])).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND (in(channel_id, 3) OR NOT in(channel_id, 3, 4))')
+  })
+
+  it('keeps a row whose nullable link names no record when it negates a lookup', () => {
+    const read = lookupRead({ model: channels, scope: { tenantValue: 7 }, value: channels.fields.name!, match: channels.fields.id!, link: messages.fields.thread_id! })
+    const model: ResourceModel = { ...messages, fields: { ...messages.fields, channel_name: withLookupRead(messages.lookups!.channel_name!, read) } }
+    const planned = sameRowPlan(model, { tenantValue: 7 }, checked(model, where.isNull('channel_name')))
+    expect(text(planned, [['3']])).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND (isNull(thread_id) OR NOT in(thread_id, 3))')
+    expect(text(planned, [[]])).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND NOT isNull(id)')
+  })
+
+  it('keeps a related() term on a nullable field to no row when the caller reads none of its records', () => {
+    const term = { field: messages.fields.thread_id!, related: { model: channels } }
+    expect(text(sameRowPlan(messages, { tenantValue: 7, parents: [term] }, undefined))).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND isNull(id)')
+  })
+
+  it('matches a text tenant exactly, a * in it too', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), org: f.text() }).primaryKey((r) => r.id).tenant((r) => r.org).toModel()
+    expect(text(sameRowPlan(notes, { tenantValue: 'acme*' }, undefined))).toBe('in(org, "acme*")')
   })
 
   it('cannot keep a search over a lookup field to the row', () => {
@@ -88,7 +106,7 @@ describe('sameRowFilter', () => {
     const queries: CompiledQuery[] = []
     const filter = await sameRowFilter(answering({ s0: ['5'] }, queries), messages, scope, undefined)
     expect(queries.map((query) => query.sql)).toEqual(['select array(select v::text from (select "t"."id" from "channels" as "t" where "t"."deleted_at" is null and "t"."tenant_id" = $1) as s(v) where v is not null) as "s0"'])
-    expect(filter && printFilter(filter)).toBe('isNull(deleted_at) AND tenant_id = 7 AND in(channel_id, 5)')
+    expect(filter && printFilter(filter)).toBe('isNull(deleted_at) AND in(tenant_id, 7) AND in(channel_id, 5)')
   })
 
   it('reads nothing without a subquery, and answers false when the read cannot be kept to the row', async () => {

@@ -547,7 +547,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
-  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
+  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), live: refresh, onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them

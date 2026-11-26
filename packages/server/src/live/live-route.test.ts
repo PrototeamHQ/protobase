@@ -82,6 +82,13 @@ describe('liveRoutes', () => {
     expect(await events(appOf(feed), '?after=5', 1)).toEqual([{ type: 'refresh', cursor: '7' }])
   })
 
+  it('ends the stream after a refresh, so the page connects again with its access as it is now', async () => {
+    const { feed, listeners } = fakeFeed('7', [notice('5'), { ...notice('6', refreshNotice), key: 'u1' }])
+    const body = await (await appOf(feed).request('/live?after=5')).text()
+    expect(body.trim().split('\n\n').map((event) => JSON.parse(event.replace(/^data: /, '')))).toEqual([{ type: 'refresh', cursor: '7' }])
+    await expect.poll(() => listeners.size).toBe(0)
+  })
+
   it('stops listening once the page hangs up, and refuses a cursor that is no number', async () => {
     const { feed, listeners } = fakeFeed('1')
     const app = appOf(feed)

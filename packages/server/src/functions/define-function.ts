@@ -78,6 +78,8 @@ export type KeyFunctionContext = {
   db: ScopedDb
   /** The caller of the `apikey` header and bearer token: rejects with a 401 problem when they admit nobody. */
   caller: () => Promise<Caller>
+  /** Tells a person's open pages to read again once their access changed: `live.refresh({ user })`, see `LiveRefresh`. */
+  live: LiveRefresh
 }
 
 /** A Web-standard handler. Its request's path is the part after `/api/functions/<name>`: `/` or `/more/parts`. */
