@@ -26,7 +26,7 @@ export const userTablesModule: SchemaModule = {
     const found = await readUserTablesSchema(db)
     if (!found.tables) return
     if (!userTablesCurrent(found)) {
-      throw new Error(`The ${definitionsSchema} schema lacks the default of a definition's version, a definition's organization, the position index of its fields, the ${userTablesSchema} schema or pg_trgm, which no step of this version of Protobase records: bring it there with \`protobase migration\` and \`protobase migrate\` of the Protobase release before this one first, then run this command again`)
+      throw new Error(`The ${definitionsSchema} schema lacks the default of a definition's version, a definition's organization, the position index of its fields, the ${userTablesSchema} schema or pg_trgm, which no step of this version of Protobase records`)
     }
     return { lastStep: 1, replaceables: {} }
   },

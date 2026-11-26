@@ -15,7 +15,7 @@ const readCustomSteps = async (db: Db, { names }: ModuleInput): Promise<ModuleMo
   const tables = [...customStepsTables, ...runnersTables]
   if (!(await tablesFound(db, schema, tables.slice(0, 1)))) return
   if (!(await tablesFound(db, schema, tables))) {
-    throw new Error(`The custom steps' tables in schema "${schema}" are not all there, which no step of this version of Protobase records: add them with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The custom steps' tables in schema "${schema}" are not all there, which no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: (await triggersFound(db, schema, triggers)) ? { functions: 1 } : {}, names }
 }

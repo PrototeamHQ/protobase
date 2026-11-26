@@ -87,7 +87,7 @@ export const readRelay = (members: ResourceReplaceable, organization: ResourceRe
   if (!state!.table && !sessions) return
   const version = state!.comment?.match(/^Protobase realtime members (\d+)$/)?.[1]
   if (state!.comment && Number(version) !== membersVersion) {
-    throw new Error(`The functions that keep realtime.members are at ${version === undefined ? 'a version' : `version ${version}`} no step of this version of Protobase records: bring them to version ${membersVersion} with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The functions that keep realtime.members are at ${version === undefined ? 'a version' : `version ${version}`} no step of this version of Protobase records`)
   }
   const found = await readTriggers(db)
   const given = Object.entries(input.resources[members.name] ?? {})

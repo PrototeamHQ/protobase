@@ -71,7 +71,7 @@ describe('the webhooks schema', () => {
     await pg.exec(webhooksSchemaSql())
     expect(await statuses()).toEqual([200, 200, 200, 200, 200, 200, 200])
     await pg.exec(earlierSchema)
-    await expect(webhooksSchemaModule.read(db, targets.webhooks)).rejects.toThrow('The subscriptions table in schema "webhooks" lacks indexes no step of this version of Protobase records: add them with `protobase migration` and `protobase migrate` of Protobase 0.14.2 first')
+    await expect(webhooksSchemaModule.read(db, targets.webhooks)).rejects.toThrow('The subscriptions table in schema "webhooks" lacks indexes no step of this version of Protobase records')
     await db.destroy()
   })
 
