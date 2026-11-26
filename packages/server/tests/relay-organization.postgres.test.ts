@@ -101,6 +101,9 @@ describe.skipIf(!ready)('channels that reach their whole organization', () => {
   })
 
   it("move someone a statement moves to another organization out of the old one's public channels and into the new one's", async () => {
+    await sql`delete from auth.member where id = 'm4'`.execute(pg.db)
+    await sql`insert into auth.member values ('m4', 'a', 'dora', 'member')`.execute(pg.db)
+    await queued()
     await sql`update auth.member set organization_id = 'b' where id = 'm4'`.execute(pg.db)
     const moved = await queued()
     expect(moved.map((pair) => `${pair.organization}:${pair.user}`).sort()).toEqual(['a:dora', 'b:dora'])
@@ -116,6 +119,8 @@ describe.skipIf(!ready)('channels that reach their whole organization', () => {
     const input = (organization: object) => ({ names: { sessions: '"session"' }, resources: { members: {}, ...organization } })
     const organization = relayModule.resourceReplaceables.find((replaceable) => replaceable.name === 'organization')!
     expect((await relayModule.read(pg.db, input({ organization: { member } })))?.resources?.organization).toEqual({ member: resourceEntry(organization, { sessions: '"session"' }, member) })
+    const renamed = { ...member, input: { ...member.input, user: 'person_id' } }
+    expect((await relayModule.read(pg.db, input({ organization: { member: renamed } })))?.resources?.organization).toEqual({ member: { ...resourceEntry(organization, { sessions: '"session"' }, renamed), digest: '' } })
     expect((await relayModule.read(pg.db, input({})))?.resources?.organization).toEqual({ member: { version: organization.version, digest: '', table: { schema: 'auth', name: 'member' } } })
   })
 

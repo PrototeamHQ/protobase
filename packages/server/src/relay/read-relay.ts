@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { resourceEntry } from '../schema-modules/resource-difference'
 import type { ModuleInput, ModuleModel, ResourceEntry, ResourceReplaceable } from '../schema-modules/schema-module'
-import { memberTriggersFound, type MemberTable } from './organization-members-sql'
+import { memberFunctionComment, memberTriggersFound, type MemberTable } from './organization-members-sql'
 import { argsOf, membersVersion, realtimeMembersTable, realtimeSchema, rowTrigger, truncateTrigger, type ListedTable } from './realtime-members-sql'
 import { sessionsCurrent, sessionsVersion } from './sessions-sql'
 
@@ -49,7 +49,8 @@ const keeps = (found: readonly FoundTrigger[], listed: ListedTable, rel: string)
 
 /**
  * The organization trigger as the database has it for `input`: at the entry it writes when it stands on the member
- * table `input` names with all three triggers of this version, at no digest when it is older, so it is written again,
+ * table `input` names with all three triggers, calling the function this version writes for the columns `input` names,
+ * at no digest when it is older or reads other columns, so it is written again,
  * and at no digest under the table it is on when that is another table, so it is dropped.
  */
 const readOrganization = async (db: Db, organization: ResourceReplaceable, input: ModuleInput) => {
@@ -60,7 +61,8 @@ const readOrganization = async (db: Db, organization: ResourceReplaceable, input
   for (const trigger of found) {
     if (given && trigger.table === rel) {
       const entry = resourceEntry(organization, input.names, given)
-      entries.member = trigger.current ? entry : { ...entry, digest: '' }
+      const current = trigger.complete && trigger.comment === memberFunctionComment(given.input as MemberTable)
+      entries.member = current ? entry : { ...entry, digest: '' }
       continue
     }
     entries[given ? `member on ${trigger.table}` : 'member'] = { version: organization.version, digest: '', table: { schema: trigger.schema, name: trigger.name } }

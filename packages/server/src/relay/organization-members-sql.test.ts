@@ -11,6 +11,10 @@ describe('memberTableSql', () => {
     expect(statements).toContain("perform jobs.enqueue('relay.organization-members', jsonb_build_object('members', moved))")
   })
 
+  it("names the columns the function reads in its comment, so the migration writes it again when they change", () => {
+    expect(statements).toContain("comment on function relay.organization_members_changed() is 'Protobase relay organization members 1: organization_id, person_id'")
+  })
+
   it('reads the columns under the names the store gives them, and an update only by the pairs it changes', () => {
     expect(statements).toContain('select "organization_id"::text as organization, "person_id"::text as "user" from added except select "organization_id"::text as organization, "person_id"::text as "user" from removed')
   })
