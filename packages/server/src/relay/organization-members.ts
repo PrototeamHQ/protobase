@@ -30,7 +30,11 @@ const column = (name: string) => sql.raw(quoteIdent(name))
 
 const grouped = (rows: ReadonlyArray<{ by: string; value: string }>) => {
   const found = new Map<string, string[]>()
-  for (const row of rows) found.set(row.by, [...(found.get(row.by) ?? []), row.value])
+  for (const row of rows) {
+    const group = found.get(row.by)
+    if (group) group.push(row.value)
+    else found.set(row.by, [row.value])
+  }
   return found
 }
 
