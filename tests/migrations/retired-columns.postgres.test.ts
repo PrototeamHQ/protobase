@@ -26,9 +26,10 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a retired column, on r
     const migration = (run: Partial<MigrationRun>) =>
       runMigration({ projectDir, dir, auth: organizationsOn, modules: {}, protobaseVersion: '1.0.0', newId: ids, database: { url: database.url, parts: [], contractions: (sections) => trialContractions(database.url, sections), readModule: async () => undefined }, ...run })
     const attnum = async () => (await sql`select attnum from pg_attribute where attrelid = 'auth.session'::regclass and attname = 'active_organization_id'`)[0]!.attnum as number
-    // Each bucket starts an hour of the test's, two when its writes cross an hour.
+    // Each bucket starts an hour from the one before the watched writes to the one of the read, both included.
+    let start = ''
     const writes = async () =>
-      (await sql`select column_name, sum(writes)::int as writes, bool_and(hour = date_trunc('hour', hour) and hour > now() - interval '1 hour' and hour <= now()) as hours from retired.writes group by 1 order by 1`).map((row) => ({ ...row }))
+      (await sql`select column_name, sum(writes)::int as writes, bool_and(hour = date_trunc('hour', hour) and hour >= date_trunc('hour', ${start}::timestamptz) and hour <= date_trunc('hour', clock_timestamp())) as hours from retired.writes group by 1 order by 1`).map((row) => ({ ...row }))
     try {
       await migration({ database: undefined })
       await migrate()
@@ -45,6 +46,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a retired column, on r
       expect(text).toContain('create trigger "active_organization_id_retired_writes"')
       expect(await trialContractions(database.url, [{ name: 'auth', text }])).toEqual([])
       await migrate()
+      start = (await sql`select clock_timestamp()::text as start`)[0]!.start as string
       await sql`insert into auth.session (id, expires_at, token, updated_at, user_id, active_organization_id) values ('s2', now() + interval '1 day', 't2', now(), 'ana', 'main')`
       await sql`update auth.session set active_organization_id = 'main' where id = 's1'`
       await sql`insert into auth.session (id, expires_at, token, updated_at, user_id) values ('s3', now() + interval '1 day', 't3', now(), 'ana')`
