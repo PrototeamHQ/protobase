@@ -13,7 +13,7 @@ const readStream = async (db: Db, { names }: ModuleInput): Promise<ModuleModel |
   const { ddl, drop } = schemaMessagesTriggers(schema)
   const fn = `${quoteIdent(schema)}.${quoteIdent(schemaMessagesFunction)}`
   const { rows } = await sql<{ found: boolean; triggers: number }>`select to_regprocedure(${`${fn}()`}) is not null as found,
-      (select count(*)::int from pg_event_trigger where evtname = any(${[ddl, drop]}::text[]) and evtenabled <> 'D' and evtfoid = to_regprocedure(${`${fn}()`})) as triggers`.execute(db)
+      (select count(*)::int from pg_event_trigger where evtname = any(${[ddl, drop]}::text[]) and evtenabled in ('O', 'A') and evtfoid = to_regprocedure(${`${fn}()`})) as triggers`.execute(db)
   const { found, triggers } = rows[0]!
   if (!found) return
   return { lastStep: 1, replaceables: triggers === 2 ? { schema_messages: 1 } : {}, names }
