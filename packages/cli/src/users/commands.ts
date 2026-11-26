@@ -77,19 +77,19 @@ export const createUserCommand = async (
 }
 
 /**
- * Creates the user (`createUserCommand`) and, with organizations, adds them to the organization `--organization` names,
- * or to none, not to the default organization the other commands pin unless it is named. The organization is resolved
+ * Creates the user (`createUserCommand`) and, with organizations, adds them to the organization `--organization` names;
+ * without it none is chosen, not the default organization the other commands pin. The organization is resolved
  * first, so an unknown one creates nobody.
  */
 export const createMemberCommand = async (api: UsersApi, options: CreateMemberOptions, deps: PasswordDeps, out: (text: string) => void) => {
   if (options.allOrganizations && !api.organizationsOn) throw new Error('--all-organizations needs organizations: turn on auth.organizations in the config')
   if (options.allOrganizations && options.organization !== undefined) throw new Error('Pass --organization or --all-organizations, not both')
-  // Without --organization the account joins none, so no organization's rows are read.
+  // Without --organization no organization is chosen, so no organization's rows are read.
   const pin = options.organization === undefined ? undefined : await resolveOptionalPin(api, options, 'users create')
-  const joinsNone = api.organizationsOn && !pin
-  if (joinsNone && (options.orgRole !== undefined || options.appRoles !== undefined)) throw new Error('--org-role and --app-roles need --organization <slug>: without it the user joins no organization')
+  const noneChosen = api.organizationsOn && !pin
+  if (noneChosen && (options.orgRole !== undefined || options.appRoles !== undefined)) throw new Error('--org-role and --app-roles need --organization <slug>: without it no organization is chosen')
   const user = await createUserCommand(api, options, deps, out)
-  if (joinsNone) out(`${user.email} joins no organization\n`)
+  if (noneChosen) out(`No organization chosen with --organization for ${user.email}\n`)
   if (!pin || 'every' in pin) return
   // The first user owns every organization without members already, such as one a seed made.
   if (user.first && (await api.isMember(pin.organization.id, user.email))) {

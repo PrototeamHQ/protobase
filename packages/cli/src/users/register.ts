@@ -27,7 +27,7 @@ const finish = (code: number) => process.exit(code)
 export const registerUsers = (program: Command) => {
   const users = program.command('users').description('Manage the admin users of the project in the current directory')
 
-  pinOptions(users.command('create').description('Create a user; the first user is always an admin. With organizations, they join the organization --organization names, else none'))
+  pinOptions(users.command('create').description('Create a user; the first user is always an admin. With organizations, they join the organization --organization names; without it none is chosen'))
     .argument('<email>')
     .option('--name <name>', 'display name')
     .option('--role <role>', 'role for users after the first (default: the project\'s default role; see `users roles`)')

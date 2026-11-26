@@ -173,7 +173,7 @@ describe('createMemberCommand', () => {
 
   it('adds the new user to no organization without --organization, and refuses roles there', async () => {
     const users = api(true, true)
-    expect(await create(users, {})).toBe('Created auditor jan@example.com\njan@example.com joins no organization\n')
+    expect(await create(users, {})).toBe('Created auditor jan@example.com\nNo organization chosen with --organization for jan@example.com\n')
     await expect(create(users, { orgRole: 'admin' })).rejects.toThrow('need --organization')
     await expect(create(users, { appRoles: 'sales' })).rejects.toThrow('need --organization')
     expect(users.createUser).toHaveBeenCalledTimes(1)
@@ -195,7 +195,7 @@ describe('createMemberCommand', () => {
 
   it('creates the account in no organization with --all-organizations', async () => {
     const users = api(true, true)
-    expect(await create(users, { allOrganizations: true })).toBe('Created auditor jan@example.com\njan@example.com joins no organization\n')
+    expect(await create(users, { allOrganizations: true })).toBe('Created auditor jan@example.com\nNo organization chosen with --organization for jan@example.com\n')
     expect(users.addMember).not.toHaveBeenCalled()
   })
 
@@ -209,7 +209,7 @@ describe('createMemberCommand', () => {
     // An isMember that answers yes would print the first user's ownership if it were reached.
     const isMember = vi.fn(async () => true)
     const users = { ...api(false, true), isMember }
-    expect(await create(users, {})).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com joins no organization\n')
+    expect(await create(users, {})).toBe('Created admin jan@example.com, shown in the app as Superuser\nNo organization chosen with --organization for jan@example.com\n')
     expect(isMember).not.toHaveBeenCalled()
     expect(users.addMember).not.toHaveBeenCalled()
   })
