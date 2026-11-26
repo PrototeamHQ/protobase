@@ -159,6 +159,17 @@ export const postgresSuite = [
   'tests/examples/erp/{erp-models,kysely-postgres-js,reachable}.ts',
 ]
 
+// What the older-code job (scripts/affected-older-code.mjs) checks against the previous release's tests: the sign-in
+// store's and the schema modules' steps, the parts `protobase migration` writes from them, and the migration files, a
+// hand-written one that retires a column among them, with the scripts that run it.
+export const olderCode = [
+  'packages/server/src/{better-auth/store,jobs/steps,changes/steps}/**',
+  'packages/server/src/better-auth/auth-schema.ts',
+  'packages/cli/src/migration/**',
+  '**/db/migrations/**',
+  'scripts/older-code/**',
+]
+
 // What the snapshot tests' recordings (`bun run test:record`, `*.sql.json`) are made from, which CI records again when a
 // file of it changed: the SQL the server and the query layer issue, with the jobs, changes and auth schemas in it, and
 // the migrations the Supabase import writes, the tests with their recordings, and the Postgres setup. A file every test
