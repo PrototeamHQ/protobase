@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import type { Db } from '@protobase/query'
+import { callerActor } from '../api-keys/caller-settings'
 import type { Caller } from '../api-keys/resolve-caller'
 import type { AuthStoreTables } from '../better-auth/auth-tables'
 import { wakeDispatch } from '../changes/actor'
@@ -20,9 +21,10 @@ export type RestDeps = Pick<Deps, 'db' | 'registry' | 'statementTimeoutMs' | 'gu
  * read-only for a read, so a function that writes fails as on PostgREST.
  */
 export const asCaller = async <T>(deps: RestDeps, c: Context<RestEnv>, readOnly: boolean, work: (trx: Db) => Promise<T>) => {
-  const settings = callerSettings(c.get('caller'), deps.actorSetting)
+  const caller = c.get('caller')
+  const settings = callerSettings(caller, deps.actorSetting)
   if (readOnly) return readTransaction(deps.db, deps.statementTimeoutMs, work, settings)
-  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, work, settings)
+  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, work, settings, callerActor(caller))
   wakeDispatch(deps)
   return result
 }

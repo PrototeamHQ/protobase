@@ -1,14 +1,26 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
+import type { EventActor } from '@protobase/schema'
+import { actorPrefix, emitMessage } from './changes/logical-message'
+
+/**
+ * Sets `settings` for the rest of the open transaction and, given an `actor`, emits its `protobase_actor` message, so
+ * the change stream knows who wrote the rows that follow: one statement, one round trip.
+ */
+export const applySettings = async (trx: Db, settings: Record<string, string>, actor?: EventActor) => {
+  const parts = Object.entries(settings).map(([name, value]) => sql`set_config(${name}, ${value}, true)`)
+  if (actor) parts.push(emitMessage(actorPrefix, JSON.stringify(actor)))
+  if (parts.length === 0) return
+  await sql`select ${sql.join(parts)}`.execute(trx)
+}
 
 /**
  * One transaction whose statements Postgres cancels after `timeoutMs` (SET LOCAL statement_timeout), with `settings`
- * set for it as well, all in one statement.
+ * set for it as well and `actor`'s message emitted (see `applySettings`), all in one statement.
  */
-export const writeTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) => Promise<T>, settings: Record<string, string> = {}) =>
+export const writeTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) => Promise<T>, settings: Record<string, string> = {}, actor?: EventActor) =>
   db.transaction().execute(async (trx) => {
-    const all = Object.entries({ statement_timeout: String(timeoutMs), ...settings })
-    await sql`select ${sql.join(all.map(([name, value]) => sql`set_config(${name}, ${value}, true)`))}`.execute(trx)
+    await applySettings(trx, { statement_timeout: String(timeoutMs), ...settings }, actor)
     return run(trx)
   })
 

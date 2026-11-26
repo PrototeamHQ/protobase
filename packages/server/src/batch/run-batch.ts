@@ -1,4 +1,4 @@
-import { actorSettings, wakeDispatch } from '../changes/actor'
+import { actorSettings, sessionActor, wakeDispatch } from '../changes/actor'
 import type { Deps } from '../deps'
 import { problemOf } from '../error-handler'
 import { once, type Idempotency } from '../idempotency'
@@ -119,7 +119,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
       }
     }
     return results
-  }), actorSettings(deps, session)))
+  }), actorSettings(deps, session), sessionActor(session)))
   await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return written
