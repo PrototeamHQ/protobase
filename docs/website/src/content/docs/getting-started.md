@@ -111,7 +111,7 @@ bun install
 
 ```sh
 bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small   # the ERP's tables and Better Auth's
-bun run --cwd tests/apps/erp protobase users create you@example.com --generate-password
+bun run --cwd tests/apps/erp protobase users create you@example.com --organization erp --org-role owner --generate-password
 bun run --cwd tests/apps/erp dev                          # prints its address, http://localhost:<port>
 ```
 

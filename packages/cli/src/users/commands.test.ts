@@ -171,17 +171,26 @@ describe('createMemberCommand', () => {
     return out.join('')
   }
 
-  it('adds the new user to the pinned organization', async () => {
+  it('adds the new user to no organization without --organization, and refuses roles there', async () => {
     const users = api(true, true)
-    expect(await create(users, { orgRole: 'admin', appRoles: 'sales' })).toBe('Created auditor jan@example.com\nAdded jan@example.com to acme as admin\n')
-    expect(users.addMember).toHaveBeenCalledWith({ organization: '1', email: 'jan@example.com', role: 'admin', appRoles: ['sales'] })
+    expect(await create(users, {})).toBe('Created auditor jan@example.com\njan@example.com joins no organization\n')
+    await expect(create(users, { orgRole: 'admin' })).rejects.toThrow('need --organization')
+    await expect(create(users, { appRoles: 'sales' })).rejects.toThrow('need --organization')
+    expect(users.createUser).toHaveBeenCalledTimes(1)
+    expect(users.addMember).not.toHaveBeenCalled()
   })
 
   it('adds the new user to the organization --organization names', async () => {
     const users = api(true, true)
-    expect(await create(users, { organization: 'globex' })).toBe('Created auditor jan@example.com\nAdded jan@example.com to globex\n')
-    expect(users.addMember).toHaveBeenCalledWith({ organization: '2', email: 'jan@example.com' })
+    expect(await create(users, { organization: 'globex', orgRole: 'admin', appRoles: 'sales' })).toBe('Created auditor jan@example.com\nAdded jan@example.com to globex as admin\n')
+    expect(users.addMember).toHaveBeenCalledWith({ organization: '2', email: 'jan@example.com', role: 'admin', appRoles: ['sales'] })
     await expect(create(api(true, true), { organization: 'initech' })).rejects.toThrow('No organization "initech"')
+  })
+
+  it('adds the new user to the default organization when --organization names it', async () => {
+    const users = api(true, true)
+    expect(await create(users, { organization: 'acme', orgRole: 'owner' })).toBe('Created auditor jan@example.com\nAdded jan@example.com to acme as owner\n')
+    expect(users.addMember).toHaveBeenCalledWith({ organization: '1', email: 'jan@example.com', role: 'owner' })
   })
 
   it('creates the account in no organization with --all-organizations', async () => {
@@ -190,18 +199,24 @@ describe('createMemberCommand', () => {
     expect(users.addMember).not.toHaveBeenCalled()
   })
 
-  it('leaves the first user as the owner of the pinned organization it owns already', async () => {
+  it('leaves the first user as the owner of the organization named when it owns it already, such as one a seed made', async () => {
     const users = { ...api(false, true), isMember: async () => true }
-    expect(await create(users, {})).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com owns acme\n')
+    expect(await create(users, { organization: 'globex' })).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com owns globex\n')
     expect(users.addMember).not.toHaveBeenCalled()
   })
 
-  it('skips the first-user ownership step with --all-organizations on an empty store', async () => {
+  it('leaves the first user in no organization without --organization on an empty store', async () => {
     // An isMember that answers yes would print the first user's ownership if it were reached.
     const isMember = vi.fn(async () => true)
     const users = { ...api(false, true), isMember }
-    expect(await create(users, { allOrganizations: true })).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com joins no organization\n')
+    expect(await create(users, {})).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com joins no organization\n')
     expect(isMember).not.toHaveBeenCalled()
+    expect(users.addMember).not.toHaveBeenCalled()
+  })
+
+  it('creates the account alone while organizations are off', async () => {
+    const users = api(true)
+    expect(await create(users, {})).toBe('Created auditor jan@example.com\n')
     expect(users.addMember).not.toHaveBeenCalled()
   })
 

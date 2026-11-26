@@ -226,8 +226,8 @@ const organizationsPage = async (auth: AdminAuth, scope: HostScope, { after, siz
 
 /**
  * Makes `userId` the owner, with the creator's app roles, of every organization without members, in one statement: for
- * the first user of an app whose organizations were made before anyone could own them, such as by its seed. Returns
- * how many.
+ * the first user of an app whose organizations were made before anyone could own them, such as by its seed. The
+ * default organization is left out: the migration made it to stand in while organizations are off. Returns how many.
  */
 export const ownOrganizationsWithoutMembers = (auth: AdminAuth, userId: string) =>
   acrossOrganizations('the first user owns every organization without members', () => ownEmptyOrganizations(auth, userId))
@@ -237,9 +237,11 @@ const ownEmptyOrganizations = async (auth: AdminAuth, userId: string) => {
   const store = storeSqlOf(await contextOf(auth))
   const member = store.table('member')
   const m = member.columns
+  const defaultId = settings.options.default?.id
+  const notDefault = defaultId === undefined ? sql`` : sql`and cast(o.id as text) <> ${defaultId}`
   const { rows } = await sql`insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
     select ${store.newId}, o.id, ${userId}, 'owner', ${JSON.stringify(settings.creatorAppRoles)}::jsonb, ${new Date()} from ${store.table('organization')} o
-    where not exists (select from ${member} m where m.${m.organization_id} = o.id)
+    where not exists (select from ${member} m where m.${m.organization_id} = o.id) ${notDefault}
     returning id`.execute(store.db)
   return rows.length
 }

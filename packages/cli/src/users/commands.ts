@@ -34,11 +34,11 @@ export type CreateUserOptions = {
   githubId?: string
 }
 
-/** `users create`: the account, and with organizations its membership of the pinned organization. */
+/** `users create`: the account, and with organizations its membership of the organization `--organization` names. */
 export type CreateMemberOptions = CreateUserOptions & PinOptions & {
-  /** With organizations: the organization role in the pinned organization, `member` unless given. */
+  /** With organizations: the organization role in the organization named, `member` unless given. */
   orgRole?: string
-  /** With organizations: the app roles in the pinned organization, comma separated. */
+  /** With organizations: the app roles in the organization named, comma separated. */
   appRoles?: string
 }
 
@@ -77,18 +77,21 @@ export const createUserCommand = async (
 }
 
 /**
- * Creates the user (`createUserCommand`) and, with organizations, adds them to the pinned organization, or to none
- * with `--all-organizations`. The pin is resolved first, so an unknown organization creates nobody.
+ * Creates the user (`createUserCommand`) and, with organizations, adds them to the organization `--organization` names,
+ * or to none, not to the default organization the other commands pin unless it is named. The organization is resolved
+ * first, so an unknown one creates nobody.
  */
 export const createMemberCommand = async (api: UsersApi, options: CreateMemberOptions, deps: PasswordDeps, out: (text: string) => void) => {
   if (options.allOrganizations && !api.organizationsOn) throw new Error('--all-organizations needs organizations: turn on auth.organizations in the config')
   if (options.allOrganizations && options.organization !== undefined) throw new Error('Pass --organization or --all-organizations, not both')
-  // With --all-organizations the account joins none, so no organization's rows are read.
-  const pin = options.allOrganizations ? undefined : await resolveOptionalPin(api, options, 'users create')
+  // Without --organization the account joins none, so no organization's rows are read.
+  const pin = options.organization === undefined ? undefined : await resolveOptionalPin(api, options, 'users create')
+  const joinsNone = api.organizationsOn && !pin
+  if (joinsNone && (options.orgRole !== undefined || options.appRoles !== undefined)) throw new Error('--org-role and --app-roles need --organization <slug>: without it the user joins no organization')
   const user = await createUserCommand(api, options, deps, out)
-  if (options.allOrganizations) out(`${user.email} joins no organization\n`)
+  if (joinsNone) out(`${user.email} joins no organization\n`)
   if (!pin || 'every' in pin) return
-  // The first user owns every organization without members already, the pinned one among them.
+  // The first user owns every organization without members already, such as one a seed made.
   if (user.first && (await api.isMember(pin.organization.id, user.email))) {
     out(`${user.email} owns ${pin.organization.slug}\n`)
     return
