@@ -3,6 +3,7 @@ import { channelSendsModule } from '../channels/sends-module'
 import { computedModule } from '../computed/computed-module'
 import { derivedModule } from '../derived/derived-module'
 import { changesModule } from '../changes/changes-module'
+import { streamModule } from '../changes/stream/stream-module'
 import { commentsModule } from '../comments/comments-module'
 import { historyModule } from '../history/history-module'
 import { jobsModule } from '../jobs/jobs-module'
@@ -34,6 +35,7 @@ export const schemaModules = {
   mail_feedback: mailFeedbackModule,
   computed: computedModule,
   changes: changesModule,
+  change_stream: streamModule,
   history: historyModule,
   derived: derivedModule,
   notices: noticesModule,

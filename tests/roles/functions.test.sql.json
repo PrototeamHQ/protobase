@@ -16,7 +16,7 @@
   "API functions in an app with roles > opens a function without roles or a capability only to callers holding *": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"state\" as \"state\" from \"vms\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["state",25]],"rows":[["1","stopped"]]}},
       {"sql":"update \"vms\" as t set \"state\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"state\" as \"state\"","params":["running","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["state",25]],"rows":[["1","running"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -30,7 +30,7 @@
   "API functions in an app with roles > opens a function with a capability to callers whose roles hold all of it": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"operator\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"state\" as \"state\" from \"vms\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["state",25]],"rows":[["1","running"]]}},
       {"sql":"update \"vms\" as t set \"state\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"state\" as \"state\"","params":["stopped","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["state",25]],"rows":[["1","stopped"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},

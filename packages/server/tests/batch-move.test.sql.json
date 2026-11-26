@@ -18,7 +18,7 @@
         ["lines_position_idx","btree","f","position","\"position\"","int4_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select pg_advisory_xact_lock(hashtextextended($1, 0))","params":["move:.lines.position"],"result":{"command":"SELECT","rowCount":1,"columns":[["pg_advisory_xact_lock",2278]],"rows":[[""]]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"position\" as \"position\", \"t\".\"position\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"lines\" as \"t\" where \"t\".\"folder_id\" = $1 order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2","params":["1","501"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",23],["position",23],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1","1","1","1"],
@@ -54,7 +54,7 @@
       {"sql":"truncate lines restart identity;\n    insert into lines (folder_id, position, body) values (1, 1, 'a'), (1, 2, 'b'), (1, 3, 'c'), (1, 4, 'd'), (2, 1, 'x');","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":5,"columns":[],"rows":[]}]},
       {"sql":"delete from lines where id = 3; insert into lines (folder_id, position, body) values (1, 9, 'e')","result":[{"command":"DELETE","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select pg_advisory_xact_lock(hashtextextended($1, 0))","params":["move:.lines.position"],"result":{"command":"SELECT","rowCount":1,"columns":[["pg_advisory_xact_lock",2278]],"rows":[[""]]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"position\" as \"position\", \"t\".\"position\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"lines\" as \"t\" where \"t\".\"folder_id\" = $1 order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2","params":["1","501"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",23],["position",23],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1","1","1","1"],
@@ -89,7 +89,7 @@
       {"sql":"truncate lines restart identity;\n    insert into lines (folder_id, position, body) values (1, 1, 'a'), (1, 2, 'b'), (1, 3, 'c'), (1, 4, 'd'), (2, 1, 'x');","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":5,"columns":[],"rows":[]}]},
       {"sql":"update lines set position = 0 where id = 3; update lines set position = 3 where id = 2; update lines set position = 2 where id = 3","result":[{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]},{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]},{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}]},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select pg_advisory_xact_lock(hashtextextended($1, 0))","params":["move:.lines.position"],"result":{"command":"SELECT","rowCount":1,"columns":[["pg_advisory_xact_lock",2278]],"rows":[[""]]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"position\" as \"position\", \"t\".\"position\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"lines\" as \"t\" where \"t\".\"folder_id\" = $1 order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2","params":["1","501"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",23],["position",23],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1","1","1","1"],
@@ -105,7 +105,7 @@
         ["d"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select pg_advisory_xact_lock(hashtextextended($1, 0))","params":["move:.lines.position"],"result":{"command":"SELECT","rowCount":1,"columns":[["pg_advisory_xact_lock",2278]],"rows":[[""]]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"position\" as \"position\", \"t\".\"position\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"lines\" as \"t\" where \"t\".\"folder_id\" = $1 order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2","params":["1","501"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",23],["position",23],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1","1","1","1"],

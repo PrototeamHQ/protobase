@@ -16,7 +16,7 @@
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"organizations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["2"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"JSO4LlEZxNZpyTHNyuuQ5nqszyecAWhw\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"organizations\" (\"name\") values ($1) returning \"id\" as \"id\", \"name\" as \"name\"","params":["Initech"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["3","Initech"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ],

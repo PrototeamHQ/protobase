@@ -5,6 +5,11 @@ export type EventsOptions = {
    * (`changes.actor`, `changes.capture`); default `changes`. Rename it when the database already has a schema by that name.
    */
   schema?: string
+  /**
+   * Whether `protobase migration` writes the event triggers that put schema changes into the WAL as logical messages,
+   * which the change stream reads in order with the rows. Creating them takes a superuser.
+   */
+  stream?: boolean
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/

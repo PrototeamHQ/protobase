@@ -4,6 +4,7 @@ import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import { badRequest, notFound } from '../problem'
 import type { Entry } from '../registry'
+import { sessionActor } from '../changes/actor'
 import { tenantScope } from '../tenant'
 import { writeTransaction } from '../transactions'
 import type { Session } from '../types'
@@ -44,7 +45,7 @@ export const postComment = async (deps: Deps, entry: Entry, session: Session, ke
     const record = recordLabel(access, deps.views, key, current.record)
     await mentionJob!.enqueueMany(trx, input.mentions.map((user) => ({ payload: { comment: inserted.id, user, url, record }, options: { key: `${inserted.id}:${user}` } })))
     return inserted
-  })
+  }, {}, sessionActor(session))
   if (!row) throw notFound(`No ${entry.name} with this key`)
   const names = deps.comments?.users ? await deps.comments.users.names(namedUsers([row])) : {}
   return commentItem(row, names)

@@ -53,6 +53,12 @@ describe('neededModules', () => {
     expect(ids(app([], { unsubscribe: true }))).toEqual(['unsubscribes'])
   })
 
+  it('needs the schema change messages with events.stream, in the schema events names, and not without it', () => {
+    expect(neededModules(app([], { events: { schema: 'events', stream: true } })).change_stream).toEqual({ names: { schema: 'events' }, resources: {} })
+    expect(ids(app([], { events: { stream: false } }))).toEqual([])
+    expect(ids(app([]))).toEqual([])
+  })
+
   it("needs an option's own tables as a module of their own while the option is on, under the schema the config names", () => {
     const webhooks = neededModules(app([], { webhooks: { schema: 'hooks', deliveryLog: true }, events: { schema: 'events' } }))
     expect(webhooks.webhooks).toEqual({ names: { schema: 'hooks', changes: 'events' }, resources: {} })

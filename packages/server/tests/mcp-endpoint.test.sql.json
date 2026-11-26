@@ -1291,7 +1291,7 @@
   "the MCP endpoint > creates a record after the person approves it, through the API's rules and hooks": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"LHKUlzA9hmFoIs88CAk6JpSvOiFI8gGm\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"organizations\" (\"name\") values ($1) returning \"id\" as \"id\", \"name\" as \"name\"","params":["Approved Org"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["3","Approved Org"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
@@ -1412,7 +1412,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select id from organizations where name = $1","params":["Own Tool Org"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"UwUsuSrgx4Ts1LXZpiWn4cp0nq9pm2z6\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"organizations\" (\"name\") values ($1) returning \"id\" as \"id\", \"name\" as \"name\"","params":["Own Tool Org"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["4","Own Tool Org"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select id from organizations where name = $1","params":["Own Tool Org"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}}
@@ -1527,7 +1527,7 @@
   "the MCP endpoint > writes at once for a user holding a role of rolesWithoutApproval, and asks anyone else": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"4ajoehhPfXSnVSBv5adBHmTcgoJtuAGB\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"organizations\" (\"name\") values ($1) returning \"id\" as \"id\", \"name\" as \"name\"","params":["Unasked Org"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["5","Unasked Org"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ],
@@ -1719,7 +1719,7 @@
   "the MCP endpoint > refuses an update or a delete with an etag the record changed since, and leaves it as it is": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"hPhTnLtsAiUcLWDnLMlprKaOyPzYFwXr\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"organizations\" (\"name\") values ($1) returning \"id\" as \"id\", \"name\" as \"name\"","params":["Stale Org"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["6","Stale Org"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
@@ -1728,7 +1728,7 @@
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\" from \"organizations\" as t where \"id\" = $1 limit 1","params":["6"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["6","Stale Org"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"hPhTnLtsAiUcLWDnLMlprKaOyPzYFwXr\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\" from \"organizations\" as t where \"id\" = $1 limit 1 for update","params":["6"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["6","Stale Org"]]}},
       {"sql":"update \"organizations\" as t set \"name\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"name\" as \"name\"","params":["Fresh Org","6"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["name",25]],"rows":[["6","Fresh Org"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
