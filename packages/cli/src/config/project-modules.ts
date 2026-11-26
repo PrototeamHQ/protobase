@@ -34,7 +34,7 @@ export const builtModules = (project: BuiltProject) =>
     realtime: project.realtime,
     events: project.events,
     userTables: project.userTables,
-    readOnlyQueries: readOnlyQueriesOn(project.options?.assistant, process.env),
+    readOnlyQueries: readOnlyQueriesOn(project.options ?? {}, process.env),
   })
 
 /** The model the app `project` reads of its database's record of migrations (`runtimeModel`). */
@@ -58,6 +58,6 @@ export const configModules = async (config: MergedConfig) => {
     realtime: config.realtime,
     events: config.events,
     userTables: userTablesOn(config),
-    readOnlyQueries: readOnlyQueriesOn(config.assistant, process.env),
+    readOnlyQueries: readOnlyQueriesOn({ assistant: config.assistant, mcp: config.mcpEndpoint }, process.env),
   })
 }

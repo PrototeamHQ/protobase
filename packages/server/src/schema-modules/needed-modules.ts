@@ -44,7 +44,7 @@ export type ModuleApp = {
   events?: EventsOptions
   /** Whether the tables users add serve (`userTables`). */
   userTables?: boolean
-  /** Whether the built-in assistant's read-only queries run, as a role of their own that must not read the auth store. */
+  /** Whether read-only queries run, of the built-in assistant or the MCP endpoint's `sql`, as a role of their own that must not read the auth store. */
   readOnlyQueries?: boolean
 }
 

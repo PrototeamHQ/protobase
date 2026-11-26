@@ -62,5 +62,5 @@ export const mailFeedbackSchemaSql = () => modulesSql({ mail_feedback: noInput }
 /** The table of who unsubscribed from which topic of the bulk mail. */
 export const unsubscribesSchemaSql = () => modulesSql({ unsubscribes: noInput })
 
-/** The role of the built-in assistant's read-only queries and its runner, with select on the tables of `models` but those of `auth`'s store. */
+/** The role of read-only queries and its runner, with select on the tables of `models` but those of `auth`'s store. */
 export const querySchemaSql = (models: readonly ResourceModel[], auth?: StoreNamesSource) => modulesSql({ query: queryInput(models, auth && storeNames(auth)) })

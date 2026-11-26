@@ -48,9 +48,9 @@ await project.auth?.pinnedOrganization()
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
 // history, rollups, derived values or comments, whose objects the record of migrations holds.
 if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
-// The built-in assistant's read-only queries run as a role of their own, which must not read the auth store: what the
-// live database gave it, such as a grant made by hand, which the record of migrations cannot say.
-if (readOnlyQueriesOn(project.options?.assistant, process.env)) await checkQueryRoleSafety(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
+// Read-only queries, of the built-in assistant or the MCP endpoint's sql, run as a role of their own, which must not
+// read the auth store: what the live database gave it, such as a grant made by hand, which the record of migrations cannot say.
+if (readOnlyQueriesOn(project.options ?? {}, process.env)) await checkQueryRoleSafety(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 checkProjectRelay({ ...project, models: resources.map((resource) => resource.toModel()), views: views.map((view) => view.toModel()) }, process.env)

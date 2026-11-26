@@ -17,7 +17,7 @@ const guardedRelations = ({ tables, schemas }: GuardedTables) =>
     where c.oid in (select to_regclass(t.name) from unnest(${tables.map(regclassText)}::text[]) as t(name)) or n.nspname = any(${[...schemas]}::text[])`
 
 // What a migration does not take back: a grant or an owner changed by hand.
-const refusal = (state: string) => new Error(`The query role of the assistant's read-only queries ${state}. Take back by hand what it was given, then start again.`)
+const refusal = (state: string) => new Error(`The query role of read-only queries ${state}. Take back by hand what it was given, then start again.`)
 
 // Security-definer functions the query role may call that run as a role able to read an auth table: the statement
 // would read the auth store through them. Trigger functions cannot be called.
@@ -35,7 +35,7 @@ const leakingFunctions = (db: Db, authTables: GuardedTables) =>
   )
 
 /**
- * Refuses to go on while the runner of the assistant's read-only queries, which the record of migrations says is there,
+ * Refuses to go on while the runner of read-only queries, which the record of migrations says is there,
  * does not run as a role weaker than the app's: it is no security definer, or runs as the app's role itself or one it
  * is a member of, a superuser, a login role, or one that can read an auth table, or while that role may call a
  * security-definer function that runs as a role able to read one. A migration cannot promise these: they are the live
@@ -60,6 +60,6 @@ export const checkQueryRoleSafety = async (db: Db, authTables: GuardedTables) =>
   const leaking = await leakingFunctions(db, authTables)
   if (leaking.length === 0) return
   throw new Error(
-    `The query role of the assistant's read-only queries can read the auth schema through the security-definer functions ${leaking.map((found) => found.name).join(', ')}. Revoke execute on them from PUBLIC, or move them to a schema without a resource, then start again.`,
+    `The query role of read-only queries can read the auth schema through the security-definer functions ${leaking.map((found) => found.name).join(', ')}. Revoke execute on them from PUBLIC, or move them to a schema without a resource, then start again.`,
   )
 }

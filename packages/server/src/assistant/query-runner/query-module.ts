@@ -19,12 +19,12 @@ const grants: ResourceReplaceable = {
 }
 
 /**
- * The role the built-in assistant's read-only queries run as, `<database>_query`, which reads only the resources'
- * tables (`queryInput`), and `query.run_read_only`, the runner every query goes through as that role.
+ * The role read-only queries run as, `<database>_query`, of the built-in assistant and the MCP endpoint's `sql`, which
+ * reads only the resources' tables (`queryInput`), and `query.run_read_only`, the runner every query goes through as that role.
  */
 export const queryModule: SchemaModule = {
-  label: "the query role of the assistant's read-only queries",
-  title: "The role the assistant's read-only queries run as, which reads only the resources' tables",
+  label: "the query role of read-only queries",
+  title: "The role read-only queries run as, which reads only the resources' tables",
   steps: [{ step: 1, name: 'role', title: 'The query role', additive: true, sql: roleStep }],
   // Not marked compatible with an earlier version: the code of one before it is not known to run on it.
   replaceables: [{ name: 'runner', title: 'The runner the queries go through, query.run_read_only()', version: 1, compatibleFrom: 1, sql: runnerSql }],

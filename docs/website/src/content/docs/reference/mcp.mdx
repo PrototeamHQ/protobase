@@ -149,7 +149,7 @@ A definition the save check refuses comes back as `{ "error": "invalid-workflow"
 export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { sql: true } })
 ```
 
-It runs one `SELECT` in a read-only transaction, as the app's database role, **outside the access rules and tenant scoping**: whoever has one of those roles reads the whole database through it. Give those roles only to people who may see all of the data.
+It runs one `SELECT` in a read-only transaction as the query role, `<database>_query`, **outside the access rules and tenant scoping**: whoever has one of those roles reads every resource's table through it. Give those roles only to people who may see all of the data. [`protobase migration`](/reference/cli/#migration) writes that role with `mcpEndpoint.sql` on, as it does for the built-in assistant, and the server does not start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks it; the assistant's page says [what it may read](/reference/assistant/#the-built-in-backend).
 
 ### Writes
 
