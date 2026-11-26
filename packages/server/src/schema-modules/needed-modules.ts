@@ -71,6 +71,7 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
     ...(app.mailFeedback && { mail_feedback: noInput }),
     ...(app.models.some(computedOn) && { computed: computedInput(app.models) }),
     ...(changes && { changes: changesInput(captured, app.events) }),
+    ...(app.events?.stream && { change_stream: events }),
     ...(app.models.some((model) => model.history) && { history: events }),
     ...(derivedNames(app.models).length > 0 && { derived: derivedInput(app.models) }),
     ...((app.models.some((model) => model.live) || Boolean(app.calls)) && { notices: events }),
