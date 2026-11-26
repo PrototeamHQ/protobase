@@ -90,7 +90,7 @@ export const planAdoption = async (db: Kysely<any>, names: StoreNames): Promise<
   })
   if (problems.length > 0) {
     throw new Error(
-      `The auth store an earlier Protobase made matches none of its migrations' versions: ${problems.join('; ')}. Bring it to the schema of Protobase 0.47 first, with that version's \`protobase auth migration\`, then run this again.`,
+      `The auth store an earlier Protobase made matches none of its migrations' versions: ${problems.join('; ')}.`,
     )
   }
   return adoption

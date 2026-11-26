@@ -164,11 +164,11 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
     expect(await migrate(projectDir, dir)).toBeUndefined()
   })
 
-  it('refuses a store that records versions alone, as a Protobase before 0.130 left it, naming the release to migrate through', async () => {
+  it('refuses a store that records versions alone, as a Protobase before 0.130 left it', async () => {
     const { databaseUrl, projectDir, dir } = await olderStore(17)
     await query(databaseUrl, 'drop table auth.auth_steps')
     await expect(writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow(
-      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it: bring the project to Protobase 0.130 first',
+      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it, which no step of this version of Protobase reads',
     )
   })
 
