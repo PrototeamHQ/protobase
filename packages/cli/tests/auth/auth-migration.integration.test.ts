@@ -397,7 +397,7 @@ delete from auth_steps where module = 'mail_senders' and step = 3`,
     await query(databaseUrl, 'alter table passkey drop column rp_id; alter table jwks alter column alg type integer using null')
     const folder = await migrationsDir()
     await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(
-      "The auth store an earlier Protobase made matches none of its migrations' versions: 1 core has jwks.alg as int4, not text; 3 passkeys lacks passkey.rp_id.",
+      /^The auth store an earlier Protobase made matches none of its migrations' versions: 1 core has jwks\.alg as int4, not text; 3 passkeys lacks passkey\.rp_id\.$/,
     )
     expect(await readdir(folder)).toEqual([])
     expect(await query(databaseUrl, "select nspname from pg_namespace where nspname = 'protobase_auth_adoption'")).toEqual([])
@@ -423,7 +423,7 @@ delete from auth_steps where module = 'mail_senders' and step = 3`,
     const older = await createDatabase()
     await query(older, versionRecord)
     await expect(authSchemaMigration(authOn(older))).rejects.toThrow(
-      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it, which no step of this version of Protobase reads',
+      /^The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0\.130 left it, which no step of this version of Protobase reads$/,
     )
   })
 
