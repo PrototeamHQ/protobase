@@ -9,7 +9,8 @@ import { actorPrefix, emitMessage } from './changes/logical-message'
  */
 export const applySettings = async (trx: Db, settings: Record<string, string>, actor?: EventActor) => {
   const parts = Object.entries(settings).map(([name, value]) => sql`set_config(${name}, ${value}, true)`)
-  if (actor) parts.push(emitMessage(actorPrefix, JSON.stringify(actor)))
+  // Its answer, the message's WAL position, means nothing to the app and differs on every run, so the select keeps none of it.
+  if (actor) parts.push(sql`${emitMessage(actorPrefix, JSON.stringify(actor))} is not null`)
   if (parts.length === 0) return
   await sql`select ${sql.join(parts)}`.execute(trx)
 }

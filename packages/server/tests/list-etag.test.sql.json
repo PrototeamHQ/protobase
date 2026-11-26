@@ -52,7 +52,7 @@
   "etag=false > reads the key for row permissions, though fields leaves it out": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"restricted\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["ok-etag","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","ok-etag",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
       {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","4","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
