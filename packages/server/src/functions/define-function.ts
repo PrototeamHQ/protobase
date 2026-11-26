@@ -4,6 +4,7 @@ import type { Caller } from '../api-keys/resolve-caller'
 import type { CallsAccess } from '../calls/calls-access'
 import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { ChannelSender } from '../channels/channel-sender'
+import type { LiveRefresh } from '../live/refresh/live-refresh'
 import type { PersonalMail } from '../personal-mail/personal-mailer'
 import type { Session } from '../types'
 import type { SocketEvents } from './function-socket'
@@ -34,6 +35,8 @@ export type PublicFunctionContext = {
   acceptWebSocket: (events: SocketEvents) => Response
   /** Admits a member to a call's media, over the socket the function accepts: see `CallsAccess`. */
   calls: CallsAccess
+  /** Tells a person's open pages to read again once their access changed: `live.refresh({ user })`, see `LiveRefresh`. */
+  live: LiveRefresh
 }
 
 /** Who called a function, and the app's resources as them. */

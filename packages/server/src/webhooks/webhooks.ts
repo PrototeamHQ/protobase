@@ -19,6 +19,7 @@ import { subscriptionProblems, subscriptionRouter } from './route-events'
 import { eventChange, subscriberEvents } from './subscriber-view'
 import type { SubscriptionDefinition, SubscriptionEvent } from './subscription'
 import type { ChannelSender } from '../channels/channel-sender'
+import { liveRefresh, type LiveRefresh } from '../live/refresh/live-refresh'
 import { tableSubscriptionName } from './table/options'
 import { sendTestJob } from './table/schema-sql'
 import type { TableSubscriptions } from './table/table-subscriptions'
@@ -30,6 +31,8 @@ export type WebhooksInput = {
   functions: Record<string, ApiFunction>
   /** What a function the subscriptions call broadcasts to record channels with. */
   channels: ChannelSender
+  /** What such a function tells a person's open pages to read again with; without it, it does nothing. */
+  live?: LiveRefresh
   /** The schema of the outbox (`EventsOptions.schema`). */
   schema: string
   /** Where each delivery's outcome is written: the server log. */
@@ -95,7 +98,7 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *
  * No jobs without a resource with events or history; the subscriptions must name declared events.
  */
-export const createWebhooks = ({ deps, subscriptions, functions, channels, schema, log, table, onChanges }: WebhooksInput) => {
+export const createWebhooks = ({ deps, subscriptions, functions, channels, live = liveRefresh(undefined), schema, log, table, onChanges }: WebhooksInput) => {
   const entries = deps.registry.entries
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
@@ -116,7 +119,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
     const id = tableId(subscription)
     const started = performance.now()
     const allowPrivateAddresses = id === undefined || Boolean(table?.allowPrivateAddresses)
-    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, attempt: tried, signal, allowPrivateAddresses })
+    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, live, attempt: tried, signal, allowPrivateAddresses })
     if (id !== undefined) await table!.subscriptions.record(db, id, event, tried, result, performance.now() - started)
     return result
   }

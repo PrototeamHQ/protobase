@@ -6,6 +6,7 @@ import type { AdminEnv } from '../types'
 import { liveRoutes, type LiveEvent } from './live-route'
 import type { NoticeFeed } from './notice-feed'
 import type { Notice } from './notices-sql'
+import { refreshNotice } from './refresh/refresh-notices'
 
 const notice = (id: string, resource = 'orders', tenant: string | null = null): Notice => ({ id, resource, key: id, operation: 'update', tenant, at: '2026-08-01T00:00:00.000Z' })
 
@@ -29,7 +30,7 @@ const appOf = (feed: NoticeFeed) => {
     c.set('session', { user: { id: 'u1', roles: ['admin'] } })
     await next()
   })
-  app.route('/', liveRoutes(feed, async () => (entry) => entry.resource === 'orders'))
+  app.route('/', liveRoutes(feed, async () => (entry) => entry.resource === 'orders' || (entry.resource === refreshNotice && entry.key === 'u1')))
   return app
 }
 
@@ -71,6 +72,14 @@ describe('liveRoutes', () => {
     const { feed, push } = fakeFeed('7', [notice('9')])
     const seen = await events(appOf(feed), '?after=9', 2, () => push([notice('8'), notice('9'), notice('11')]))
     expect(seen).toEqual([{ type: 'current', cursor: '9' }, { type: 'changes', cursor: '11', changes: [{ resource: 'orders', key: '11', operation: 'update' }] }])
+  })
+
+  it("tells a page to read everything again once its person's access changed, as it comes and on catching up", async () => {
+    const refresh = (id: string, user: string): Notice => ({ ...notice(id, refreshNotice), key: user })
+    const { feed, push } = fakeFeed('7', [notice('5'), refresh('6', 'u1')])
+    const seen = await events(appOf(feed), '', 2, () => push([refresh('8', 'u2'), notice('9'), refresh('10', 'u1')]))
+    expect(seen).toEqual([{ type: 'current', cursor: '7' }, { type: 'refresh', cursor: '10' }])
+    expect(await events(appOf(feed), '?after=5', 1)).toEqual([{ type: 'refresh', cursor: '7' }])
   })
 
   it('stops listening once the page hangs up, and refuses a cursor that is no number', async () => {

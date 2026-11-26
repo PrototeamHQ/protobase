@@ -11,13 +11,16 @@ export type LiveChange = { resource: string; key: string; operation: 'create' | 
 export type LiveHandlers = {
   /** The records that changed, in commit order, of the live resources the caller may read. */
   onChanges: (changes: LiveChange[]) => void
-  /** Changes went by while the connection was down for longer than the server keeps them: read everything shown again. */
+  /**
+   * Read everything shown again: changes went by while the connection was down for longer than the server keeps them,
+   * or the caller's access changed (`live.refresh({ user })` on the server), so a read with `Prefer: live` gets new tokens.
+   */
   onResync: () => void
   /** The stream failed, with why, or ended (`undefined`); it is followed again after a pause. */
   onRetry?: (error: unknown) => void
 }
 
-type LiveEvent = { type: 'current' | 'resync'; cursor: string } | { type: 'changes'; cursor: string; changes: LiveChange[] }
+type LiveEvent = { type: 'current' | 'resync' | 'refresh'; cursor: string } | { type: 'changes'; cursor: string; changes: LiveChange[] }
 
 const backoff = (attempt: number) => Math.min(30_000, 1000 * 2 ** attempt)
 
@@ -43,7 +46,7 @@ export const followLive = (send: Transport, handlers: LiveHandlers, retryDelay: 
   const onEvent = (event: LiveEvent) => {
     failures = 0
     cursor = event.cursor
-    if (event.type === 'resync') handlers.onResync()
+    if (event.type === 'resync' || event.type === 'refresh') handlers.onResync()
     if (event.type === 'changes') handlers.onChanges(event.changes)
   }
 
