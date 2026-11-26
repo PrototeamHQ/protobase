@@ -112,10 +112,10 @@
   "a field the caller cannot read > cannot be written blind either, and is not in the response of a write": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"viewer\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"ledger\" (\"title\", \"secret\", \"status\", \"organization_id\") values ($1, $2, $3, $4) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"title\" as \"title\", \"secret\" as \"secret\", \"status\" as \"status\"","params":["by admin","gamma-secret","open","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["title",25],["secret",25],["status",25]],"rows":[["3","1","by admin","gamma-secret","open"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -173,11 +173,11 @@
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"title\" as \"title\", \"secret\" as \"secret\", \"status\" as \"status\" from \"ledger\" as t where \"organization_id\" = $1 and (\"id\") in (($2))","params":["1","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["title",25],["secret",25],["status",25]],"rows":[["2","1","visible two","beta-secret","locked"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"title\" as \"title\", \"secret\" as \"secret\", \"status\" as \"status\" from \"ledger\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["title",25],["secret",25],["status",25]],"rows":[["2","1","visible two","beta-secret","locked"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"title\" as \"title\", \"secret\" as \"secret\", \"status\" as \"status\" from \"ledger\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["title",25],["secret",25],["status",25]],"rows":[["2","1","visible two","beta-secret","locked"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -224,11 +224,11 @@
   "a hidden field, to a caller who may use the resource > is refused on update exactly like an unknown field": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"viewer\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"title\" as \"title\", \"secret\" as \"secret\", \"status\" as \"status\" from \"ledger\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["title",25],["secret",25],["status",25]],"rows":[["1","1","visible one","alpha-secret","open"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"viewer\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"title\" as \"title\", \"secret\" as \"secret\", \"status\" as \"status\" from \"ledger\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["title",25],["secret",25],["status",25]],"rows":[["1","1","visible one","alpha-secret","open"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -236,10 +236,10 @@
   "a hidden field, to a caller who may use the resource > is refused on create exactly like an unknown field": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"viewer\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"viewer\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },

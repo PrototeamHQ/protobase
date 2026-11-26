@@ -18,6 +18,7 @@ import type { ScanGuard } from './scan-guard'
 import type { AuditQueue, PipelineHook, Session, WriteCheck } from './types'
 import type { CallsService } from './calls/calls-service-type'
 import type { MailSender } from './personal-mail/mail-sender'
+import type { LiveTokens } from './live/token/live-tokens'
 
 /** Everything a route needs, built once by `createAdmin` and passed down explicitly. */
 export type Deps = {
@@ -95,4 +96,6 @@ export type Deps = {
   mailSenders?: (userId: string) => Promise<MailSender[]>
   /** With `calls`: the app's calls, which functions admit members to and the records' readers follow. */
   calls?: CallsService
+  /** With the relay: the live tokens a list or record read of a live resource gives on `Prefer: live`. */
+  liveTokens?: LiveTokens
 }

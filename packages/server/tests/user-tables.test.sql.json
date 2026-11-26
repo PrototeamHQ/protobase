@@ -44,7 +44,7 @@
   "tables defined in the database > serves create, list, record and search of a definition to an admin, and the code resources beside it": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"tester\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"user_tables\".\"notes\" (\"title\", \"body\") values ($1, $2) returning \"id\" as \"id\", \"title\" as \"title\", \"body\" as \"body\"","params":["First note","Some <script>text</script>"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",20],["title",25],["body",25]],"rows":[["1","First note","Some <script>text</script>"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"user_tables\".\"notes\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},

@@ -69,6 +69,19 @@ For a database that already has a schema named `changes`, pick another name in `
 export default defineConfig({ events: { schema: 'row_changes' } })
 ```
 
+## What the write-ahead log carries
+
+A reader of the database's write-ahead log (WAL), such as a logical replication client, can name each changed row's resource and who changed it without any table of Protobase's: Protobase writes it there as logical decoding messages, transactional ones, so each arrives with its transaction's rows, in their order, and only once it commits.
+
+- **`protobase_actor`**: the API emits it at the start of every write transaction it runs for a caller, a single write, a batch, a comment, a write through the [PostgREST-compatible API](/reference/supabase-rest/) or the storage API, in the same statement that sets the transaction's settings, so it costs no round trip. Its content is the caller as `changes.actor` holds it, such as `{"id":"u1","roles":["admin"]}`; the PostgREST-compatible and storage APIs name their signed-in user only, with no roles, and emit none for an anonymous caller or the app's own key. A write of the app's own background work, or from outside the API, has no `protobase_actor` message.
+- **`protobase_ddl`** and **`protobase_drop`**: with `events: { stream: true }`, `protobase migration` writes `changes.emit_schema_messages()` and two event triggers, `changes_ddl_messages` and `changes_drop_messages` (the prefix is the events schema). A schema change then emits a `protobase_ddl` message for each command it runs, such as `{"command_tag": "ALTER TABLE", "object_type": "table", "schema_name": "public", "object_identity": "public.orders"}`, and a `protobase_drop` message for each object it drops, such as `{"object_type": "table", "schema_name": "public", "object_identity": "public.orders"}`, in Postgres's own words. A table's new columns come from the relation message logical decoding sends before its next row. Creating an event trigger takes a superuser, so the migration fails, and rolls back, as any other role.
+
+The messages need no `wal_level` setting to be written; reading them needs `wal_level = logical`. Which table holds which resource, its key, tenant and owner columns, is in the bundle's [change model](/reference/cli/#the-manifest).
+
+```ts
+export default defineConfig({ events: { stream: true } })
+```
+
 ## Migrations and startup
 
 [`protobase migration`](/reference/cli/#migration) writes what the project's `protobase.snapshot.json` lacks of the change capture as the project's next migration: the jobs schema, then the `changes` schema with the outbox, the function, and a trigger pair per resource with events, each a module with numbered steps that the snapshot and the record of migrations hold. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, it keeps its triggers while another resource is still captured, so the code still running drains what they capture, and the migration once none is drops them, saying it breaks older code; it never drops a table. <gap>`protobase migration` cannot refuse a trigger of the app's own named like the capture's, `<table>_changes` or `<table>_changes_update`, which the file replaces, because reading the database's triggers before writing is not implemented.</gap>

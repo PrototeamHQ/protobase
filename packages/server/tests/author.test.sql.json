@@ -7,11 +7,11 @@
   "a resource with an author > stamps each create with the signed-in user, through the resources API and a batch": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"ann\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"messages\" (\"body\", \"author_id\") values ($1, $2) returning \"id\" as \"id\", \"body\" as \"body\", \"author_id\" as \"author_id\"","params":["Hi all","ann"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["body",25],["author_id",25]],"rows":[["1","Hi all","ann"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"bo\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"insert into \"messages\" (\"body\", \"author_id\") values ($1, $2) returning \"id\" as \"id\", \"body\" as \"body\", \"author_id\" as \"author_id\"","params":["Hi Ann","bo"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["body",25],["author_id",25]],"rows":[["2","Hi Ann","bo"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -19,10 +19,10 @@
   "a resource with an author > refuses the client's own value on create and on update": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"ann\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"ann\",\"roles\":[\"admin\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"body\" as \"body\", \"author_id\" as \"author_id\" from \"messages\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["body",25],["author_id",25]],"rows":[["1","Hi all","ann"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]

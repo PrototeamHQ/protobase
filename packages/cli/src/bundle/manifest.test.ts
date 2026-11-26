@@ -48,6 +48,14 @@ describe('parseManifest', () => {
     expect(() => parseManifest({ ...manifest, realtime: { client_events: [] } }, 'm.json')).toThrow('m.json has a realtime that is not { client_events, presence }')
   })
 
+  it('keeps the change model, and refuses one whose resource lacks its columns', () => {
+    const orders = { table: { schema: null, name: 'orders' }, key: ['id'], tenant: 'organization_id', personal: ['owner_id'] }
+    const changes = { resources: { orders, lines: { table: { schema: 'sales', name: 'lines' }, key: ['order_id', 'line'], tenant: null, personal: [] } } }
+    expect(parseManifest({ ...manifest, changes }, 'm.json')).toEqual({ ...manifest, changes })
+    expect(() => parseManifest({ ...manifest, changes: { resources: { orders: { ...orders, tenant: undefined } } } }, 'm.json')).toThrow("m.json has a changes that is not { resources } with each resource's table, key, tenant and personal columns")
+    expect(() => parseManifest({ ...manifest, changes: { resources: { orders: { ...orders, table: 'orders' } } } }, 'm.json')).toThrow('m.json has a changes that is not { resources }')
+  })
+
   it('keeps when the bundle and its shell were built', () => {
     const built = { ...manifest, builtAt: 1_800_000_000_000, shell: { ...shell, builtAt: 1_700_000_000_000 } }
     expect(parseManifest(built, 'm.json')).toEqual(built)

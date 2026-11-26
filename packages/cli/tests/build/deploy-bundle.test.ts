@@ -36,7 +36,7 @@ describe('buildDeployBundle', () => {
   let projectDir = ''
   afterEach(() => rm(projectDir, { recursive: true, force: true }))
 
-  it('writes the config module, the production app (the shell) and a manifest of the API paths, versions and shell', async () => {
+  it('writes the config module, the production app (the shell) and a manifest of the API paths, versions, shell and change model', async () => {
     projectDir = await createProject({ 'config/index.ts': things })
     const outDir = path.join(projectDir, 'dist')
     const before = Date.now()
@@ -47,7 +47,7 @@ describe('buildDeployBundle', () => {
     expect(manifest.shell.builtAt).toBeGreaterThanOrEqual(before)
     expect(manifest.builtAt).toBeGreaterThanOrEqual(manifest.shell.builtAt!)
     expect(manifest.builtAt).toBeLessThanOrEqual(Date.now())
-    const expected = { version: 3, protobase: protobaseVersion, builtAt: manifest.builtAt, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] }, native: pinnedNative }
+    const expected = { version: 3, protobase: protobaseVersion, builtAt: manifest.builtAt, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] }, native: pinnedNative, changes: { resources: { things: { table: { schema: null, name: 'things' }, key: ['id'], tenant: null, personal: [] } } } }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')

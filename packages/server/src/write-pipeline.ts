@@ -13,7 +13,7 @@ import { encryptedValuesOf, hasEncryptedValues, sealValues } from './encryption/
 import { deleteRecord, fetchRecord, restoreRecord, updateRecord, type Shape, type StoredRecord } from './records'
 import { requestAccess, requireOperation, targetFilter, writableFields, type RequestAccess } from './request-access'
 import { tenantScope } from './tenant'
-import { actorSettings, wakeDispatch } from './changes/actor'
+import { actorSettings, sessionActor, wakeDispatch } from './changes/actor'
 import { writeTransaction } from './transactions'
 import type { Row, Session, WriteCheck } from './types'
 import { checkRules, validateFields } from './validate-body'
@@ -162,7 +162,7 @@ export const runWrite = async (deps: Deps, entry: Entry, session: Session, reque
   const result = await withDeclaredChecks(deps.registry, () => writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     await lockOrders(trx, locks)
     return writeIn(trx, deps, access, request, removed)
-  }, actorSettings(deps, session)))
+  }, actorSettings(deps, session), sessionActor(session)))
   await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return result
