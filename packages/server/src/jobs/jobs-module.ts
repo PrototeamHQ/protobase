@@ -53,7 +53,7 @@ const readJobs = async (db: Db): Promise<ModuleModel | undefined> => {
   }
   if (step === undefined) {
     throw new Error(
-      `The jobs schema is at pg-boss schema version ${pgBoss}, which no step of this version of Protobase records: bring it to version ${pgBossSteps[1]} with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`,
+      `The jobs schema is at pg-boss schema version ${pgBoss}, which no step of this version of Protobase records`,
     )
   }
   const functions = await rows<{ comment: string | null }>(

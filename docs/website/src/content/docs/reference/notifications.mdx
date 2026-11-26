@@ -444,7 +444,7 @@ The default store keeps devices in the table `devices` of the schema `notificati
 | `session_id` | the id of the sign-in session it was registered in, never its token; `NULL` when the app's `authenticate` names none |
 | `created_at`, `last_seen_at` | when the user registered it, and last refreshed it |
 
-[`protobase migration baseline`](/reference/cli/#migration) refuses a devices table written before devices kept their session or could be relay devices: bring it there with `protobase migration` of Protobase 0.14.2 first.
+[`protobase migration baseline`](/reference/cli/#migration) refuses a devices table written before devices kept their session or could be relay devices, which no step of this version of Protobase records.
 
 You rename the schema, the table and each column, as auth takes `tables`, such as to keep devices in a table you already have:
 

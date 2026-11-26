@@ -62,7 +62,7 @@ export const readCapture = (triggers: ResourceReplaceable) => async (db: Db, inp
   )
   if (!outbox!.found) return
   if (!outbox!.role) {
-    throw new Error(`The outbox of the change capture in schema "${schema}" lacks its database_role column, which no step of this version of Protobase records: bring it there with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The outbox of the change capture in schema "${schema}" lacks its database_role column, which no step of this version of Protobase records`)
   }
   const [capture] = await rowsOf(
     db,

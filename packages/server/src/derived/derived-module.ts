@@ -56,7 +56,7 @@ const readDerived = async (db: Db, input: ModuleInput): Promise<ModuleModel | un
   if (!found!.values) return
   const indexed = found!.complete && (await hasIndexes(db, derivedSchema, 'reads', ['reads_match', 'reads_value'])) && (await hasIndexes(db, derivedSchema, 'pending', ['pending_value']))
   if (!indexed) {
-    throw new Error('The derived schema lacks its versions sequence, pending table or indexes, which no step of this version of Protobase records: bring it there with `protobase migration` and `protobase migrate` of the Protobase release before this one first, then run this command again')
+    throw new Error('The derived schema lacks its versions sequence, pending table or indexes, which no step of this version of Protobase records')
   }
   const declared = (await rowsOf(db, sql<{ name: string }>`select "name" from "derived"."declared"`)).map((row) => row.name)
   const given = input.resources[values.name] ?? {}

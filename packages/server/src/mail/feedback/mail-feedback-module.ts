@@ -12,7 +12,7 @@ import { feedbackSchema, feedbackTable } from './feedback-store'
 const readMailFeedback = async (db: Db): Promise<ModuleModel | undefined> => {
   if (!(await relationFound(db, feedbackTable))) return
   if (!(await hasIndexes(db, feedbackSchema, 'feedback', feedbackIndexes.map(([name]) => name)))) {
-    throw new Error(`The table ${feedbackTable} of mailFeedback lacks indexes no step of this version of Protobase records: bring it there with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The table ${feedbackTable} of mailFeedback lacks indexes no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: {} }
 }

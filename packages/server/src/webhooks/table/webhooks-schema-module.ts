@@ -8,8 +8,6 @@ import { commandsSql, commentVersion, deliveriesSql, subscriptionsIndexes, subsc
 
 const functionNames = ['subscription_commands', 'deliveries_resend']
 
-const upgradeFirst = 'with `protobase migration` and `protobase migrate` of Protobase 0.14.2 first, then run this command again'
-
 /**
  * The functions' version, from the oldest version their comments name, `undefined` when one of them or the deliveries
  * view is missing, so they are written again as new. Refuses a version newer than this version of Protobase writes.
@@ -33,7 +31,7 @@ const readWebhooks = async (db: Db, { names }: ModuleInput): Promise<ModuleModel
   const schema = names.schema!
   if (!(await relationFound(db, `${quoteIdent(schema)}."subscriptions"`))) return
   if (!(await hasIndexes(db, schema, 'subscriptions', subscriptionsIndexes))) {
-    throw new Error(`The subscriptions table in schema "${schema}" lacks indexes no step of this version of Protobase records: add them ${upgradeFirst}`)
+    throw new Error(`The subscriptions table in schema "${schema}" lacks indexes no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: await readFunctions(db, schema), names }
 }

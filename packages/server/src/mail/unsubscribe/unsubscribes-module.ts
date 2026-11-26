@@ -9,7 +9,7 @@ import { unsubscribesSchema, unsubscribesTable } from './unsubscribe-store'
 const readUnsubscribes = async (db: Db): Promise<ModuleModel | undefined> => {
   if (!(await relationFound(db, unsubscribesTable))) return
   if (!(await hasIndexes(db, unsubscribesSchema, 'unsubscribes', unsubscribesIndexes.map(([name]) => name)))) {
-    throw new Error(`The opt-outs table ${unsubscribesTable} lacks indexes no step of this version of Protobase records: add them with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The opt-outs table ${unsubscribesTable} lacks indexes no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: {} }
 }
