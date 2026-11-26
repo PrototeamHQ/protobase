@@ -30,7 +30,7 @@ const watchTable = ddl`create table if not exists ${retiredSchema}.${'writes'} (
 const countFunction = ddl`create or replace function ${retiredSchema}.${'count_write'}() returns trigger language plpgsql security definer set search_path = pg_catalog, pg_temp as $retired$
 begin
   insert into retired.writes as counted (table_name, column_name, hour, writes)
-  values (format('%I.%I', tg_table_schema, tg_table_name), tg_argv[0], date_trunc('hour', now()), 1)
+  values (format('%I.%I', tg_table_schema, tg_table_name), tg_argv[0], date_trunc('hour', clock_timestamp()), 1)
   on conflict (table_name, column_name, hour) do update set writes = counted.writes + 1;
   return null;
 end
