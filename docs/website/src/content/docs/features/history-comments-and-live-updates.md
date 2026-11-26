@@ -12,6 +12,8 @@ description: The changes of each record, comments on it, and pages that refresh 
 - [Mentions](/reference/comments/#mentions): Mentioning a colleague in a comment sends them an email with a link to the record.
 - [Comment moderation](/reference/comments/#moderation): Admins find and delete comments across the app.
 - [Live updates](/reference/live/#what-a-page-hears): Open lists and record pages refresh within seconds when a record changes, including changes made outside the API.
+- [Live tokens](/reference/live/#live-tokens) (in development): A list or record read asked for with `Prefer: live` also returns an encrypted token that holds what the reader read and may read, with the read's snapshot, bound to their session. Subscribing with it is coming soon.
+- [Refreshing access](/reference/live/#refreshing-access) (in development): An API function tells a person's open pages to read again once their access changed, so they get new tokens.
 - [Live views](/reference/live/#resources-backed-by-a-view) (experimental): A resource backed by a view updates live when the tables it reads change.
 - [Change stream](/reference/live/#the-stream): Apps follow record changes over a stream that catches up after a reconnect.
 - [Changes in the write-ahead log](/reference/events/#what-the-write-ahead-log-carries) (in development): A reader of the database's write-ahead log learns who made each change and, when switched on, each schema change, from logical messages in the change's own transaction, and maps each table to its resource from the change model `protobase build` writes into the bundle's manifest.
