@@ -58,9 +58,10 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
 | `calls.join(member)` | The events of a member's socket in a call, for `acceptWebSocket`. See [Calls](/reference/calls/). |
 | `channels` | `channels.broadcast({ resource, key, event, payload })` sends to whoever is on a record's [channel](/reference/channels/#from-the-server), as the server. |
+| `live` | `live.refresh({ user })` tells a person's open pages to read again once their access changed. See [Refreshing access](/reference/live/#refreshing-access). |
 | `name` | The function's name. |
 
-A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket`, `calls`, `channels` and `name`.
+A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket`, `calls`, `channels`, `live` and `name`.
 
 ### The organization's tables
 

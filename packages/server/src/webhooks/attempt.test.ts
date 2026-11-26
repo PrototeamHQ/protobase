@@ -31,6 +31,7 @@ const context = (resolve: Resolve, allowPrivateAddresses = false): AttemptContex
   functions: {},
   records: () => ({}) as never,
   channels: {} as never,
+  live: {} as never,
   attempt: 1,
   signal: new AbortController().signal,
   allowPrivateAddresses,

@@ -8,6 +8,7 @@ import { runInBackground } from '../background-work'
 import { notFound, unauthorized } from '../problem'
 import { namingTimeouts } from '../statement-timeout'
 import { supabaseFunctionsPath } from '../supabase-paths'
+import { liveRefresh, type LiveRefresh } from '../live/refresh/live-refresh'
 import { invokeFunction, type ApiFunction, type KeyFunctionContext, type ProtectedFunctionOptions } from './define-function'
 import { relativeRequest } from './routes'
 
@@ -19,6 +20,8 @@ export type SupabaseFunctionRoutesInput = {
   keys: ApiKeys
   /** The caller of a request's `apikey` header and bearer token (`apiKeyCaller`). */
   caller: (request: Request) => Promise<Caller>
+  /** What these functions tell a person's open pages to read again with; without it, an app with no live stream, it does nothing. */
+  live?: LiveRefresh
   onError: ErrorHandler
 }
 
@@ -30,7 +33,7 @@ export type SupabaseFunctionRoutesInput = {
  * `/<name>/more/parts`, and a CORS preflight, which carries no key, reaches it unchecked. Every other function is a 404
  * here, and none of its code runs.
  */
-export const supabaseFunctionRoutes = ({ functions, db, scope, keys, caller, onError }: SupabaseFunctionRoutesInput) => {
+export const supabaseFunctionRoutes = ({ functions, db, scope, keys, caller, live = liveRefresh(undefined), onError }: SupabaseFunctionRoutesInput) => {
   const app = new Hono().basePath(supabaseFunctionsPath)
   app.onError(onError)
   const hasKeys = keys.publishable !== undefined || keys.secret !== undefined
@@ -54,12 +57,12 @@ export const supabaseFunctionRoutes = ({ functions, db, scope, keys, caller, onE
       const request = relativeRequest(c.req.raw, supabaseFunctionsPath)
       if (options.public || c.req.method === 'OPTIONS') {
         let resolved: Promise<Caller> | undefined
-        const context: KeyFunctionContext = { name, db: scopedDb(db, (await scope()).tables, undefined), caller: () => (resolved ??= caller(c.req.raw)) }
+        const context: KeyFunctionContext = { name, db: scopedDb(db, (await scope()).tables, undefined), caller: () => (resolved ??= caller(c.req.raw)), live }
         return invokeFunction(name, fn, request, context)
       }
       if (!hasKeys) throw unauthorized('This app has no keys, so only its public functions answer here')
       const resolved = await caller(c.req.raw)
-      return invokeFunction(name, fn, request, { name, db: scopedDb(db, (await scope()).tables, undefined), caller: async () => resolved })
+      return invokeFunction(name, fn, request, { name, db: scopedDb(db, (await scope()).tables, undefined), caller: async () => resolved, live })
     }), { longQueries: options.longQueries }))
   }
   app.all('/*', (c) => {

@@ -6,6 +6,8 @@ import type { Session } from '../types'
 import { anyRecord } from './live-notices'
 import type { Notice } from './notices-sql'
 import { visibleNotices } from './visible-notices'
+import { anonymousSession } from '../anonymous'
+import { refreshNotice } from './refresh/refresh-notices'
 
 const sales = (ctx: AccessContext) => Boolean(ctx.user?.roles?.includes('sales'))
 const fields = { id: f.integer(), org_id: f.text() }
@@ -37,5 +39,12 @@ describe('visibleNotices', () => {
 
   it('passes nothing of a tenant resource to a caller without a tenant', async () => {
     expect(await heard({ user: { id: 'u1', roles: ['sales'] } })).toEqual(['orders:null'])
+  })
+
+  it("passes a refresh of access to that person's own pages only", async () => {
+    const refresh = { ...notice(refreshNotice), key: 'u1' }
+    expect((await visibleNotices(deps, { user: { id: 'u1', roles: ['user'] } }))(refresh)).toBe(true)
+    expect((await visibleNotices(deps, { user: { id: 'u2', roles: ['sales'] } }))(refresh)).toBe(false)
+    expect((await visibleNotices(deps, anonymousSession()))({ ...refresh, key: '' })).toBe(false)
   })
 })

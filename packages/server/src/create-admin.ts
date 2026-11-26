@@ -102,6 +102,10 @@ import { appRelaySettings } from './relay/relay-switch'
 import { appRelayChannels } from './relay/realtime-channels'
 import { idleRelayJobs } from './relay/relay-jobs'
 import { relayRuntime } from './relay/relay-runtime'
+import { sessionEnd } from './relay/session-end'
+import { liveTokens } from './live/token/live-tokens'
+import { liveRefresh } from './live/refresh/live-refresh'
+import { writeRefreshNotices } from './live/refresh/refresh-notices'
 import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
 import { typingViewErrors } from './relay/typing-views'
@@ -373,6 +377,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
   const fill = withAiFields ? fillJob(() => deps) : undefined
   const accessOptions = { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) }
+  const relayApp = { views: viewModels, models: appModels, signIn: Boolean(auth) }
+  const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {}, relayApp)
+  // A list or record read of a live resource gives a live token on `Prefer: live` once the relay is set, which holds its key.
+  const tokens = relaySettings && auth && liveTokens({ app: relaySettings.app, ticketKey: relaySettings.ticketKey, sessionEnd: sessionEnd(auth) })
   const deps: Deps = {
     db,
     registry,
@@ -422,10 +430,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
         ...(statusTables && { doNotDisturb: (ringDb: Db, userIds: readonly string[]) => onDoNotDisturb(ringDb, statusTables.statuses, userIds) }),
       }),
     }),
+    ...(tokens && { liveTokens: tokens }),
   }
 
-  const relayApp = { views: viewModels, models: appModels, signIn: Boolean(auth) }
-  const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {}, relayApp)
   const relay = relaySettings && relayRuntime(relaySettings, auth, deps)
   // Sign-outs queue the close of their sockets once the app's database has the relay's trigger, the relay on or not.
   const relayJobList = relay ? relay.jobs : appRelayChannels(realtime?.relay, relayApp) ? idleRelayJobs() : []
@@ -522,7 +529,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // The broadcasts and presences of both realtime APIs, apart, through one relay with several processes.
   const hubs = realtimeHubs(deps, realtime, report)
   const channels = channelSender(registry, hubs.records.broadcasts)
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, scope, records: (session) => callerRecords(deps, session), channels, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
+  // The notices table is there with a live resource or calls: the live stream reads it, and functions refresh pages through it.
+  const noticed = appModels.some((model) => model.live) || deps.calls !== undefined
+  const refresh = liveRefresh(noticed ? (userIds) => writeRefreshNotices(db, changes, userIds) : undefined)
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, scope, records: (session) => callerRecords(deps, session), channels, live: refresh, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
   // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
   if (upgradeWebSocket) {
     const visitors = (caller: Authenticator) => withAnonymous(caller, options.roles)
@@ -537,7 +547,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
-  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
+  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), live: refresh, onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them
@@ -591,7 +601,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   // With calls, the stream also tells each user's pages of the calls that ring them.
-  if (appModels.some((model) => model.live) || deps.calls) {
+  if (noticed) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
   if (engine) app.route(`${systemPath}/workflows`, guarded((routes) => void routes.route('/', engine.routes.issue())))
@@ -602,7 +612,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   app.route(deps.systemPath || '/', system)
   const derived = createDerived({ deps, computes, jobNames: jobs.map((job) => job.name) })
   const onChanges = [engine?.onChanges, derived?.onChanges, relay?.onChanges].filter((hook) => hook !== undefined)
-  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(onChanges.length > 0 && { onChanges: async (trx: Db, batch: readonly ResourceChange[]) => { for (const hook of onChanges) await hook(trx, batch) } }) })
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, live: refresh, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(onChanges.length > 0 && { onChanges: async (trx: Db, batch: readonly ResourceChange[]) => { for (const hook of onChanges) await hook(trx, batch) } }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
   // The requests held open waiting, as runners' claims are, answered at once as the process closes.
   const stopHolding = async () => void (await engine?.stop())
