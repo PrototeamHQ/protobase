@@ -24,8 +24,10 @@ const importedNames = (source: ts.SourceFile) => {
   return names
 }
 
-// `optOut(...)`, an aliased `alias(...)`, `x.optOut(...)` or `x['optOut'](...)`.
-const calledOptOut = ({ expression }: ts.CallExpression, imported: Map<string, OptOut>) => {
+// `optOut(...)`, an aliased `alias(...)`, `x.optOut(...)` or `x['optOut'](...)`, each also in parentheses, as `(alias)(...)`.
+const calledOptOut = (call: ts.CallExpression, imported: Map<string, OptOut>) => {
+  let expression: ts.Expression = call.expression
+  while (ts.isParenthesizedExpression(expression)) expression = expression.expression
   if (ts.isIdentifier(expression)) return imported.get(expression.text) ?? asOptOut(expression.text)
   if (ts.isPropertyAccessExpression(expression)) return asOptOut(expression.name.text)
   if (ts.isElementAccessExpression(expression) && ts.isStringLiteralLike(expression.argumentExpression)) return asOptOut(expression.argumentExpression.text)

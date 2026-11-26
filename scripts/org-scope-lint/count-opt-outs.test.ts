@@ -20,6 +20,10 @@ describe('the opt-out count', () => {
   it('counts everyOrganization() called by its name or an alias, not a mention or its definition', () => {
     expect(count('every-organization.ts')).toEqual({ everyOrganization: 2 })
   })
+
+  it('counts a call whose callee is in parentheses, by its name or an alias, once each', () => {
+    expect(count('parenthesized.ts')).toEqual({ acrossOrganizations: 2 })
+  })
 })
 
 describe('the reviewed list', () => {
