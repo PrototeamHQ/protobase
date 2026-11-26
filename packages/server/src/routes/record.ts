@@ -11,6 +11,8 @@ import { runWrite } from '../write-pipeline'
 import { notFound } from '../problem'
 import { resolveTarget } from './target'
 import { returnPreference } from './preferences'
+import { asksLive } from '../live/token/live-preference'
+import { liveHeaders } from '../live/token/live-headers'
 import { auditOrigin } from '../audit/origin'
 import { readHistory } from '../history/read-history'
 import { mentionable } from '../comments/mentionable'
@@ -35,10 +37,10 @@ export const recordRoutes = (deps: Deps) => {
       return c.json(await readRecordCalls(deps, entry, c.get('session'), key))
     }
     if (c.req.param('key').endsWith(':mentionable')) return c.json(await mentionable(deps, entry, c.get('session'), keyFromPath(c, entry, ':mentionable'), c.req.query()))
-    const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), c.req.query('show_deleted') === 'true')
+    const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), c.req.query('show_deleted') === 'true', asksLive(c))
     // `fields` is checked against the caller's own readable fields
     const columns = selectedFields({ ...entry.model, fields: Object.fromEntries(Object.keys(found.record).map((name) => [name, entry.model.fields[name]!])) }, c.req.query('fields'))
-    return c.json({ ...pickFields(found.record, columns), etag: found.etag, permissions: found.permissions }, 200, { ETag: found.etag })
+    return c.json({ ...pickFields(found.record, columns), etag: found.etag, permissions: found.permissions }, 200, { ETag: found.etag, ...liveHeaders(found.token) })
   })
 
   // POST /{resource}/{key}:reveal with `{ "field": "iban" }`: one sensitive value, published to the audit queue

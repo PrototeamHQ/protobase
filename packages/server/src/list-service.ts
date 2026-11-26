@@ -15,7 +15,7 @@ import { etagAlias } from './sql-parts'
 import { labelRequests, relatedLabels } from './related-labels'
 import { photosRequest, recordPhotos } from './list-photos'
 import { exposeRow, pickFields } from './rows'
-import { readTransaction } from './transactions'
+import { readTransaction, snapshotReadTransaction } from './transactions'
 import type { Session } from './types'
 
 // `count=exact` counts no further than this, so a broad filter never reads every match to count it: above it the total
@@ -28,9 +28,10 @@ export const exactCountLimit = 10_000
  * so a hidden field is refused exactly like an unknown one; the access row filter is applied by the query layer.
  * `labels` names the records the returned relations point at, each read under the related resource's own access, and
  * `photos` brings each record's first photos, read under the photos' resource's own access. `limit_per` keeps the first
- * rows per value of a field, by value and in the list's order within each, with no further page.
+ * rows per value of a field, by value and in the list's order within each, with no further page. `live` asks for a live
+ * token of the read (`token`), for a live resource when the app has one to give: the read then runs in one snapshot.
  */
-export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false, within?: FilterExpr) => {
+export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false, within?: FilterExpr, live = false) => {
   const params = jump ? parseParams(seekParams, input) : parseParams(listParams, input)
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
@@ -70,7 +71,9 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const warning = await deps.guard(entry, { ...shape, ...(per && { per: per.field }) }, { model: queryModel, scope })
   // `:seek` resolves a row position to a page on the server, so no anchor value ever reaches the caller
   const position = jump ? (params as { position: number }).position : undefined
-  const result = await readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+  const subject = live && entry.model.live && deps.liveTokens ? await deps.liveTokens.subject(session) : undefined
+  const transaction = subject ? snapshotReadTransaction : readTransaction
+  const result = await transaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     const extraColumns = entry.etag && etags ? [{ field: entry.etag.field.name, as: 'text' as const, alias: etagAlias }] : []
     const readPage = () => {
       if (per) return listPerValue(trx, queryModel, { ...shape, columns: read }, per, scope, { extraColumns })
@@ -87,6 +90,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       estimate: await estimateCount(trx, queryModel, filter, scope),
       ...(params.count === 'exact' && { counted: await countUpTo(trx, queryModel, exactCountLimit + 1, filter, scope) }),
       ...(params.labels !== undefined && { labels: await relatedLabels(trx, labels, rows) }),
+      token: subject && (await deps.liveTokens!.seal(trx, subject, { resource: entry.name, model: queryModel, scope, ...(filter && { filter }), fields: columns ?? Object.keys(model.fields) })),
     }
   })
 
@@ -94,6 +98,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const included = photos && (await recordPhotos(deps, photos, model, result.rows))
   return {
     warning: warning ?? included?.warning,
+    token: result.token,
     body: {
       items: shown.map((row, i) => ({
         ...pickFields(row, columns),

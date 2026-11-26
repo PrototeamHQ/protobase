@@ -102,6 +102,8 @@ import { appRelaySettings } from './relay/relay-switch'
 import { appRelayChannels } from './relay/realtime-channels'
 import { idleRelayJobs } from './relay/relay-jobs'
 import { relayRuntime } from './relay/relay-runtime'
+import { sessionEnd } from './relay/session-end'
+import { liveTokens } from './live/token/live-tokens'
 import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
 import { typingViewErrors } from './relay/typing-views'
@@ -373,6 +375,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
   const fill = withAiFields ? fillJob(() => deps) : undefined
   const accessOptions = { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) }
+  const relayApp = { views: viewModels, models: appModels, signIn: Boolean(auth) }
+  const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {}, relayApp)
+  // A list or record read of a live resource gives a live token on `Prefer: live` once the relay is set, which holds its key.
+  const tokens = relaySettings && auth && liveTokens({ app: relaySettings.app, ticketKey: relaySettings.ticketKey, sessionEnd: sessionEnd(auth) })
   const deps: Deps = {
     db,
     registry,
@@ -422,10 +428,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
         ...(statusTables && { doNotDisturb: (ringDb: Db, userIds: readonly string[]) => onDoNotDisturb(ringDb, statusTables.statuses, userIds) }),
       }),
     }),
+    ...(tokens && { liveTokens: tokens }),
   }
 
-  const relayApp = { views: viewModels, models: appModels, signIn: Boolean(auth) }
-  const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {}, relayApp)
   const relay = relaySettings && relayRuntime(relaySettings, auth, deps)
   // Sign-outs queue the close of their sockets once the app's database has the relay's trigger, the relay on or not.
   const relayJobList = relay ? relay.jobs : appRelayChannels(realtime?.relay, relayApp) ? idleRelayJobs() : []

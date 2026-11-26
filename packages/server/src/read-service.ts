@@ -4,10 +4,11 @@ import { deletedRows } from './params'
 import { notFound } from './problem'
 import type { Entry } from './registry'
 import { fetchReadable } from './fetch-readable'
-import { requestAccess, requireOperation, visibleFields, writableFields, type RequestAccess } from './request-access'
+import { ownScope, requestAccess, requireOperation, visibleFields, writableFields, type RequestAccess } from './request-access'
+import { keyFilter } from './live/token/key-filter'
 import { rowPermissions } from './row-permissions'
 import { pickFields } from './rows'
-import { readTransaction } from './transactions'
+import { readTransaction, snapshotReadTransaction } from './transactions'
 import type { Session } from './types'
 
 export type RecordPermissions = { update: boolean; delete: boolean; fields: Record<string, 'edit' | 'read'> }
@@ -27,19 +28,27 @@ export const fieldModes = (access: RequestAccess, canUpdate: boolean) => {
  * The record with this key as the caller may see it: readable fields only, inside the caller's tenant and row filter.
  * A key outside the tenant, outside the row filter, or failing a record-level read rule is a plain 404. `showDeleted`
  * also finds a soft-deleted record, and is refused on a resource without a soft delete once the caller may read it.
+ * `live` asks for a live token of the read (`token`), for a live resource when the app has one to give and no
+ * record-level read rule decides it, which reads no filter: the read then runs in one snapshot.
  */
-export const readRecord = async (deps: Deps, entry: Entry, session: Session, key: (string | number)[], showDeleted = false) => {
+export const readRecord = async (deps: Deps, entry: Entry, session: Session, key: (string | number)[], showDeleted = false, live = false) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'read')
   const deleted = deletedRows(access.full, showDeleted)
   const names = Object.keys(access.model.fields)
+  const asked = live && entry.model.live && deps.liveTokens && !access.resolved.recordChecks.includes('read')
+  const subject = asked ? await deps.liveTokens!.subject(session) : undefined
+  const transaction = subject ? snapshotReadTransaction : readTransaction
 
-  const found = await readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+  const found = await transaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     const current = await fetchReadable(trx, access, key, deleted, { etagFields: names, fields: visibleFields(access) })
     if (!current) return undefined
     const record = pickFields(current.record, names)
     const [row] = await rowPermissions(trx, access, [record])
-    return { record, etag: current.etag, permissions: { ...row!, fields: fieldModes(access, row!.update) } }
+    const full = deleted === 'show' ? { ...access.full, softDelete: undefined } : access.full
+    const read = { resource: entry.name, model: full, scope: ownScope(access, full), filter: keyFilter(full, key), fields: names }
+    const token = subject && (await deps.liveTokens!.seal(trx, subject, read))
+    return { record, etag: current.etag, permissions: { ...row!, fields: fieldModes(access, row!.update) }, token }
   })
   if (!found) throw notFound(`No ${entry.name} with this key`)
   return { ...found, record: (await presentFiles(access, [found.record]))[0]! }

@@ -35,3 +35,4 @@ export { everyOrganization, isEveryOrganization, type EveryOrganization, type Or
 export { ScopeRefused, type Organization } from './table-scope/scope-condition'
 export { scoped, unscoped } from './table-scope/raw-tables'
 export { type ScopedTable, type ScopedTables } from './table-scope/scoped-tables'
+export { sameRowFilter } from './same-row-filter'

@@ -16,6 +16,8 @@ import type { AdminEnv } from '../types'
 import { uploadFile } from '../files/upload'
 import { runWrite } from '../write-pipeline'
 import { returnPreference } from './preferences'
+import { asksLive } from '../live/token/live-preference'
+import { liveHeaders } from '../live/token/live-headers'
 import { resolveTarget, unknownAction } from './target'
 
 /** Filters in a JSON body may be much longer than in a URL. */
@@ -27,8 +29,8 @@ const warningHeader = (warning?: string): Record<string, string> => (warning ? {
 const listMethod = async (c: Context<AdminEnv>, deps: Deps, entry: Entry, action: string, query: Record<string, string>, within?: FilterExpr) => {
   const session = c.get('session')
   if (action === '') {
-    const { body, warning } = await listRecords(deps, entry, session, query, undefined, false, within)
-    return c.json(body, 200, warningHeader(warning))
+    const { body, warning, token } = await listRecords(deps, entry, session, query, undefined, false, within, asksLive(c))
+    return c.json(body, 200, { ...warningHeader(warning), ...liveHeaders(token) })
   }
   if (action === 'facets') {
     const { body, warning } = await facets(deps, entry, session, query, within)
@@ -83,8 +85,8 @@ export const collectionRoutes = (deps: Deps) => {
     if (action !== 'search') return unknownAction(action)
     const body = parseParams(listParams, await c.req.json())
     const within = await belongingFilter(deps, entry, c.get('session'), parent, key)
-    const { body: page, warning } = await listRecords(deps, entry, c.get('session'), body, searchFilterLength, false, within)
-    return c.json(page, 200, warningHeader(warning))
+    const { body: page, warning, token } = await listRecords(deps, entry, c.get('session'), body, searchFilterLength, false, within, asksLive(c))
+    return c.json(page, 200, { ...warningHeader(warning), ...liveHeaders(token) })
   })
 
   app.post('/:target', async (c) => {
@@ -94,8 +96,8 @@ export const collectionRoutes = (deps: Deps) => {
     if (action === 'upload') return c.json(await uploadFile(deps, entry, session, c.req.raw), 201)
     const body = await c.req.json()
     if (action === 'search') {
-      const { body: page, warning } = await listRecords(deps, entry, session, body, searchFilterLength)
-      return c.json(page, 200, warningHeader(warning))
+      const { body: page, warning, token } = await listRecords(deps, entry, session, body, searchFilterLength, false, undefined, asksLive(c))
+      return c.json(page, 200, { ...warningHeader(warning), ...liveHeaders(token) })
     }
     if (action === 'batchAggregates') {
       const { body: read, warning } = await batchAggregates(deps, entry, session, body)
