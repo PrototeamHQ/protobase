@@ -2,10 +2,10 @@
   "format": 1,
   "protobaseVersion": "0.14.2",
   "endsAt": {
-    "file": "039_auth.sql",
-    "id": "58c7ab0f-5997-41ac-9840-a9c3273ce301"
+    "file": "040_jobs.sql",
+    "id": "db642996-871f-4984-9dca-500a78a16d63"
   },
-  "modelHash": "93d204a5e2e78ed20f1e574f7feed2f0c3ef356bcf0b02c6107c68bc48aecb7e",
+  "modelHash": "0e32ef5276dab3822720dccc5369007325b4aedc4d019e0da4edd94be5fe6276",
   "model": {
     "auth": {
       "schema": "auth",
@@ -279,7 +279,7 @@
       "jobs": {
         "lastStep": 1,
         "replaceables": {
-          "functions": 4
+          "functions": 5
         }
       }
     }
