@@ -41,8 +41,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the change stream messa
     await pg?.close()
   })
 
-  const walSince = async (start: string) =>
-    (await sql<WalRecord>`select xid::text as xid, resource_manager, record_type, description from pg_get_wal_records_info(${start}::pg_lsn, 'FFFFFFFF/FFFFFFFF'::pg_lsn) order by start_lsn`.execute(db)).rows
+  // The WAL as far as it is flushed, which is all pg_walinspect reads: with synchronous_commit off, as in CI, a commit
+  // returns before its records are flushed, so a message flushed after them (the flush argument) flushes them first.
+  const walSince = async (start: string) => {
+    await sql`select pg_logical_emit_message(false, 'test_flush', '', true)`.execute(db)
+    return (await sql<WalRecord>`select xid::text as xid, resource_manager, record_type, description from pg_get_wal_records_info(${start}::pg_lsn, 'FFFFFFFF/FFFFFFFF'::pg_lsn) order by start_lsn`.execute(db)).rows
+  }
   const currentLsn = async () => (await sql<{ lsn: string }>`select pg_current_wal_insert_lsn()::text as lsn`.execute(db)).rows[0]!.lsn
   // The records of the transaction whose message `pick` finds, as `<manager> <type>`, its messages by prefix.
   const transactionOf = (records: WalRecord[], pick: (message: Message) => boolean) => {
