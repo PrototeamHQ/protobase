@@ -133,7 +133,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     await pg.exec(repair!)
     expect(await schemaModules.workflows.read(db, input)).toEqual({ lastStep: 1, replaceables: { functions: 28 }, names: input.names })
     await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 25'`)
-    await expect(schemaModules.workflows.read(db, input)).rejects.toThrow('The workflows schema is at version 25 no step of this version of Protobase records')
+    await expect(schemaModules.workflows.read(db, input)).rejects.toThrow(/^The workflows schema is at version 25 no step of this version of Protobase records$/)
     await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 28'`)
   })
 
