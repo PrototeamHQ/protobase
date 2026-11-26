@@ -46,9 +46,9 @@ const organizationsOf = async (token: string, resource: string) => {
 // The seeded ERP has two organizations, 1 and 2, each with its own records, in its tables and the auth schema's.
 describe.skipIf(!reachable)('the ERP with two organizations', () => {
   it('shows each person only the rows of the organization they work in, and switching changes them', async () => {
-    // The first user owns the seeded organizations
+    // The first user owns the seeded organizations, but for organization 1, the config's default
     await createUser(auth, { email: 'root@erp.example', password })
-    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.map((organization) => [organization.slug, organization.members.map((member) => member.role)])).toEqual([['rijnland', ['owner']], ['nordlicht', ['owner']]])
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.map((organization) => [organization.slug, organization.members.map((member) => member.role)])).toEqual([['rijnland', []], ['nordlicht', ['owner']]])
     await createUser(auth, { email: 'sanne@rijnland.example', password, role: 'user' })
     await createUser(auth, { email: 'katrin@nordlicht.example', password, role: 'user' })
     await createUser(auth, { email: 'eva@both.example', password, role: 'user' })

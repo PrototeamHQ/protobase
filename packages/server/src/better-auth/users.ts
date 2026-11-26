@@ -61,7 +61,9 @@ const checkAccounts = async (auth: AdminAuth, accounts: LinkedAccount[]) => {
  * the first user is always an `admin`, later ones get `role` (default `user`). The address counts as verified, so the
  * user can also sign in with an emailed code. `accounts` link the user to sign-in providers up front, so a provider
  * signs them in by its own id whatever address it reports; one that signs in another user already is refused. With
- * organizations, the first user also owns every organization without members, such as those an app's seed made.
+ * organizations, the first user also owns every organization without members, such as those an app's seed made,
+ * but not the default organization, which the migration made to stand in while organizations are off: on a fresh store
+ * they start in no organization and name their first one, where the app's setup for a new organization runs.
  */
 export const createUser = async (auth: AdminAuth, input: NewUser) => {
   const first = !(await hasUsers(auth))

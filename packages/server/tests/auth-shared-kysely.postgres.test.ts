@@ -72,7 +72,7 @@ const serve = async (renamed: Record<string, string> = {}, mailer?: Mailer) => {
   const sent: SentQuery[] = []
   const log = (event: { query: { sql: string; parameters: readonly unknown[] } }) => void sent.push({ sql: event.query.sql, parameters: event.query.parameters, organization: signInOrganization() })
   const db = new Kysely<any>({ dialect: store.dialect, plugins: [plugin], log })
-  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'shared-kysely-test-secret-0123456789', schema: 'public', ...(mailer ? {} : { mailer: false as const }), organizations: { enabled: true }, personalAccessTokens: { prefix }, signInDevices: true }, { db, ...(mailer && { mailer }) }))
+  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'shared-kysely-test-secret-0123456789', schema: 'public', ...(mailer ? {} : { mailer: false as const }), organizations: { enabled: true, default: { id: 'default', name: 'Default', slug: 'default' } }, personalAccessTokens: { prefix }, signInDevices: true }, { db, ...(mailer && { mailer }) }))
   const answer = answerInOrganization(auth.handler, sessionActiveOrganization(auth))
   const request = (path: string, init: { cookie?: string; body?: unknown } = {}) =>
     answer(
@@ -87,11 +87,11 @@ const serve = async (renamed: Record<string, string> = {}, mailer?: Mailer) => {
   return { store, auth, seen, returned, sent, request, bearer }
 }
 
-// Signs in a member of an organization, reads the session, and uses a JWT and a personal access token of it. As the
-// first user, she owns the default organization too, which turning organizations on made, and starts in it.
+// Signs in a member of an organization, reads the session, and uses a JWT and a personal access token of it. The
+// default organization, which turning organizations on made, is not given to her: she starts in the one she makes.
 const signInFlow = async ({ auth, request, bearer }: Awaited<ReturnType<typeof serve>>) => {
   const user = await createUser(auth, { email: 'ana@example.com', password, name: 'Ana' })
-  await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
+  const { organization } = await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
   const signedIn = await request('/api/auth/sign-in/email', { body: { email: 'ana@example.com', password } })
   expect(signedIn.status, await signedIn.clone().text()).toBe(200)
   const cookie = signedIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
@@ -100,7 +100,7 @@ const signInFlow = async ({ auth, request, bearer }: Awaited<ReturnType<typeof s
   const created = await request('/api/auth/account/personal-access-tokens/create', { cookie, body: { name: 'Script' } })
   expect(created.status, await created.clone().text()).toBe(200)
   const { token: personal } = (await created.json()) as { token: string }
-  return { user, cookie, organization: { id: 'default' }, session, jwt: await bearer(token), personal: await bearer(personal) }
+  return { user, cookie, organization, session, jwt: await bearer(token), personal: await bearer(personal) }
 }
 
 // The queries of the organization's tables: each ran in an organization, whose id it carries, or across them saying why.
@@ -124,16 +124,16 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
     const counts = await app.store.db
       .selectNoFrom((eb) => Object.values(renamed).map((table) => eb.selectFrom(table).select(eb.fn.countAll<string>().as('n')).as(table)))
       .executeTakeFirstOrThrow()
-    // Ana's memberships: the organization she made and the default one.
-    expect(counts).toEqual({ app_session: '1', app_member: '2', app_personal_access_token: '1' })
+    // Ana's membership: the organization she made.
+    expect(counts).toEqual({ app_session: '1', app_member: '1', app_personal_access_token: '1' })
     // The scope holds on the renamed tables: the member list of her organization leaves out another's members.
     await createUser(app.auth, { email: 'bo@example.com', password, name: 'Bo' })
     await createOrganization(app.auth, { name: 'Other', slug: 'other', owner: 'bo@example.com' })
     const listed = (await (await app.request('/api/auth/organization/list-members', { cookie })).json()) as { members: { userId: string; organizationId: string }[] }
-    expect(listed.members.map((member) => [member.userId, member.organizationId])).toEqual([[user.id, 'default']])
+    expect(listed.members.map((member) => [member.userId, member.organizationId])).toEqual([[user.id, organization.id]])
     const { db: storeDb } = storeSqlOf((await app.auth.$context) as unknown as AuthContext)
-    const read = await inOrganization('default', () => storeDb.selectFrom('member').select('organization_id').execute())
-    expect(read.map((row) => row.organization_id)).toEqual(['default'])
+    const read = await inOrganization(organization.id, () => storeDb.selectFrom('member').select('organization_id').execute())
+    expect(read.map((row) => row.organization_id)).toEqual([organization.id])
     const theirs = app.returned.filter(({ organization }) => typeof organization === 'string').flatMap(({ organization, rows }) => rows.filter((row) => 'organization_id' in row && row.organization_id !== organization))
     expect(theirs).toEqual([])
     // The store's own SQL maps its tables too: ending a device's sessions deletes the row of the renamed table.
@@ -163,21 +163,21 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
       },
     }
     const app = await serve({}, mailer)
-    const { user, cookie, personal } = await signInFlow(app)
+    const { user, cookie, organization, personal } = await signInFlow(app)
     const bo = await createUser(app.auth, { email: 'bo@example.com', password, name: 'Bo' })
     const other = await createOrganization(app.auth, { name: 'Other', slug: 'other', owner: 'bo@example.com' })
-    expect([personal.user.id, personal.tenant]).toEqual([user.id, 'default'])
-    const acme = (await app.store.db.selectFrom('organization').select('id').where('slug', '=', 'acme').executeTakeFirstOrThrow()).id as string
+    expect([personal.user.id, personal.tenant]).toEqual([user.id, organization.id])
+    const acme = organization.id
 
     // The member list of the organization she works in, and of one she is no member of.
     const listed = (await (await app.request('/api/auth/organization/list-members', { cookie })).json()) as { members: { userId: string; organizationId: string }[] }
-    expect(listed.members.map((member) => [member.userId, member.organizationId])).toEqual([[user.id, 'default']])
+    expect(listed.members.map((member) => [member.userId, member.organizationId])).toEqual([[user.id, acme]])
     const elsewhere = await app.request(`/api/auth/organization/list-members?organizationId=${other.organization.id}`, { cookie })
     expect(elsewhere.status).toBe(403)
 
     // Her own organizations, across them, and an invitation to Acme, whose mail goes out after the response.
     const organizations = (await (await app.request('/api/auth/organization/list', { cookie })).json()) as { id: string }[]
-    expect(organizations.map((organization) => organization.id).sort()).toEqual([acme, 'default'].sort())
+    expect(organizations.map((entry) => entry.id)).toEqual([acme])
     const invited = await app.request('/api/auth/organization/invite-member', { cookie, body: { organizationId: acme, email: 'cy@example.com', role: 'member' } })
     expect(invited.status, await invited.clone().text()).toBe(200)
     const sentByResponse = app.sent.length

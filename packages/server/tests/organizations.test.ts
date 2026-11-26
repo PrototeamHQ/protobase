@@ -129,8 +129,8 @@ describe('organizations on the host', () => {
         { email: 'sanne@example.com', role: 'member', appRoles: ['sales'] },
       ]) },
       { id: '2', name: 'Globex', slug: 'globex', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
-      // The default organization, which turning organizations on made, is one the first user owns too.
-      { id: 'default', name: 'Default', slug: 'default', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
+      // The default organization, which turning organizations on made, only stands in while they are off: nobody owns it.
+      { id: 'default', name: 'Default', slug: 'default', members: [] },
     ])
     await expect(addMember(auth, { organization: 'acme', email: 'ana@example.com', appRoles: ['admin'] })).rejects.toThrow('A member cannot hold "admin"')
     await expect(createOrganization(auth, { name: 'Acme again', slug: 'acme', owner: 'bo@example.com' })).rejects.toThrow('exists already')
@@ -153,22 +153,38 @@ describe('organizations on the host', () => {
     expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.map(({ slug, members }) => [slug, members.map(({ email, appRoles }) => `${email}:${appRoles.length}`)])).toEqual([
       ['acme', ['bo@example.com:4', 'sanne@example.com:1']],
       ['globex', ['root@example.com:4']],
-      ['default', ['root@example.com:4']],
+      ['default', []],
     ])
   })
 })
 
+const claimsOf = async (app: Awaited<ReturnType<typeof serve>>, cookie: string) => decodeJwt(await app.tokenOf(cookie))
+
 describe('the first user', () => {
-  it('owns, with every app role, the organizations made before anyone, such as by a seed', async () => {
+  it('owns, with every app role, the organizations made before anyone, such as by a seed, but not the default one', async () => {
     const { auth, store } = await serve()
     await store.exec(`insert into organization (id, name, slug, created_at) values ('1', 'Seeded', 'seeded', now())`)
     await createUser(auth, { email: 'root@example.com', password })
     await createUser(auth, { email: 'bo@example.com', password })
-    // The default organization, which turning organizations on made, is one of them.
     expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations).toEqual([
-      { id: 'default', name: 'Default', slug: 'default', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
+      { id: 'default', name: 'Default', slug: 'default', members: [] },
       { id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
     ])
+  })
+
+  it('starts in no organization on a fresh store, so they name their first one', async () => {
+    const app = await serve()
+    await createUser(app.auth, { email: 'root@example.com', password })
+    expect((await listOrganizations(app.auth, everyOrganization('the test reads every organization'))).organizations).toEqual([{ id: 'default', name: 'Default', slug: 'default', members: [] }])
+    expect(await claimsOf(app, await app.signIn('root@example.com'))).not.toHaveProperty('org')
+  })
+})
+
+describe('the organization a new session starts in', () => {
+  it('is the default organization for a member whose only membership is there, as after turning organizations on', async () => {
+    const app = await serve({}, { people: true })
+    await addMember(app.auth, { organization: 'default', email: 'ana@example.com' })
+    expect(await claimsOf(app, await app.signIn('ana@example.com'))).toMatchObject({ org: 'default' })
   })
 })
 
@@ -186,8 +202,8 @@ describe('the token of a signed-in person', () => {
     const { auth, signIn, tokenOf } = await serve({}, { people: true })
     const authenticate = betterAuthAuthenticator({ auth })
     const session = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('root@example.com'))}` } }))
-    // Root starts in the default organization, the first they own.
-    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: 'default', organization: { id: 'default', role: 'owner' }, signIn: { session: expect.any(String), staff: false, strongAt: expect.any(Function) }, memberships: expect.any(Function) })
+    // Root starts in Globex, the first they own.
+    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: '2', organization: { id: '2', role: 'owner' }, signIn: { session: expect.any(String), staff: false, strongAt: expect.any(Function) }, memberships: expect.any(Function) })
     const sanne = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('sanne@example.com'))}` } }))
     expect(sanne.user.roles).toEqual(['sales'])
     expect(sanne.organization).toEqual({ id: '1', role: 'member' })
@@ -235,8 +251,6 @@ describe('a token from issueToken', () => {
     await expect(issueToken(auth, { email: 'bo@example.com', organization: 'nowhere' })).rejects.toThrow('No organization "nowhere"')
   })
 })
-
-const claimsOf = async (app: Awaited<ReturnType<typeof serve>>, cookie: string) => decodeJwt(await app.tokenOf(cookie))
 
 describe('inviting people', () => {
   it('gives the inviter the link without a mailer, and makes an account for a new address from it', async () => {

@@ -27,7 +27,7 @@ const finish = (code: number) => process.exit(code)
 export const registerUsers = (program: Command) => {
   const users = program.command('users').description('Manage the admin users of the project in the current directory')
 
-  pinOptions(users.command('create').description('Create a user; the first user is always an admin. With organizations, they join the organization; with --all-organizations, none'))
+  pinOptions(users.command('create').description('Create a user; the first user is always an admin. With organizations, they join the organization --organization names, else none'))
     .argument('<email>')
     .option('--name <name>', 'display name')
     .option('--role <role>', 'role for users after the first (default: the project\'s default role; see `users roles`)')
@@ -35,8 +35,8 @@ export const registerUsers = (program: Command) => {
     .option('--generate-password', 'generate a strong password and print it once', false)
     .option('--no-password', 'no password: the user signs in by emailed code, passkey or a sign-in provider')
     .option('--github-id <id>', 'link the user to this GitHub user id, so signing in with GitHub finds them whatever their address')
-    .option('--org-role <role>', 'with organizations: owner, admin or member in the organization (default member)')
-    .option('--app-roles <roles>', 'with organizations: app roles in the organization, comma separated')
+    .option('--org-role <role>', 'with --organization: owner, admin or member there (default member)')
+    .option('--app-roles <roles>', 'with --organization: app roles there, comma separated')
     .addOption(new Option('--password <value>').hideHelp())
     .action(async (email: string, opts) => {
       const { readHidden, rejectPasswordArgument } = await import('./password')

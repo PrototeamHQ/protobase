@@ -62,9 +62,8 @@ describe.skipIf(!ready)('the auth store with every table and column renamed', ()
   it('signs a member of an organization in, with a session, a token and a personal access token', async () => {
     const { store, auth, request, bearer } = await serve()
     const user = await createUser(auth, { email: 'ana@example.com', password, name: 'Ana' })
-    await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
-    // As the first user, she owns the default organization too, which turning organizations on made, and starts in it.
-    const organization = { id: 'default' }
+    // The default organization, which turning organizations on made, is not given to her: she starts in the one she makes.
+    const { organization } = await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
     const signedIn = await request('/api/auth/sign-in/email', { body: { email: 'ana@example.com', password } })
     expect(signedIn.status, await signedIn.clone().text()).toBe(200)
     const cookie = signedIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
@@ -81,7 +80,7 @@ describe.skipIf(!ready)('the auth store with every table and column renamed', ()
     // The store's own SQL: the users and organizations pages, and the sessions still live.
     expect((await listUsers(auth)).users.map(({ email }) => email)).toEqual(['ana@example.com'])
     expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations).toMatchObject([
-      { slug: 'default', members: [{ email: 'ana@example.com', role: 'owner' }] },
+      { slug: 'default', members: [] },
       { slug: 'acme', members: [{ email: 'ana@example.com', role: 'owner' }] },
     ])
     // Kept to one organization, the store's own SQL reads and writes that organization's rows alone.
@@ -89,7 +88,7 @@ describe.skipIf(!ready)('the auth store with every table and column renamed', ()
     const acme = (await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.find(({ slug }) => slug === 'acme')!
     await addMember(auth, { organization: 'acme', email: 'bo@example.com', role: 'owner' })
     expect((await listOrganizations(auth, acme.id)).organizations).toMatchObject([{ slug: 'acme', members: [{ email: 'ana@example.com' }, { email: 'bo@example.com' }] }])
-    expect((await listUsers(auth, { scope: 'default' })).users.map(({ email }) => email)).toEqual(['ana@example.com'])
+    expect((await listUsers(auth, { scope: 'default' })).users.map(({ email }) => email)).toEqual([])
     expect((await listUsers(auth, { scope: acme.id })).users.map(({ id }) => id)).toEqual([user.id, bo.id])
     expect(await isMemberByEmail(auth, 'default', 'bo@example.com')).toBe(false)
     // Ana owns Acme with every app role already; Bo, its other owner, lacks the one added.
