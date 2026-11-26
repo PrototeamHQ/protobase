@@ -71,6 +71,8 @@ export const edges = [
   { from: ['packages/cli/src/project/examples-admin.test.ts'], loads: ['tests/apps/*/protobase.config.ts'] },
   // Every example served on its own migrations, with the resources its config/ holds.
   { from: ['packages/cli/tests/project/examples-schema.integration.test.ts'], loads: ['tests/apps/*/protobase.config.ts'], reads: ['tests/apps/*/config/**', 'tests/apps/*/db/migrations/**'] },
+  // The migration runner's test checks that every example's db/migrate.ts takes the runner's lock, reading them by path.
+  { from: ['packages/cli/tests/migration/apply-migrations.integration.test.ts'], reads: ['tests/apps/*/db/migrate.ts'] },
   // The admin app, found by @protobase/ui's path, which a build bundles and checks a theme against.
   { from: ['packages/cli/src/project/admin-app.ts'], loads: ['packages/ui/src/app/main.tsx'], reads: ['packages/ui/**'] },
   // Modules the CLI loads by path (module-file.ts).
