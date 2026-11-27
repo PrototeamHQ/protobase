@@ -1,10 +1,10 @@
 import type { MailSenderVerification } from '@protobase/client'
 
-/** How often a verification asks whether it settled, and how many times before it stops asking: 2 minutes. */
+/** How often a verification asks whether it settled, and how long it asks before it stops. */
 export const verifyInterval = 3000
-export const verifyAttempts = 40
+export const verifyDeadline = 120_000
 
-/** Where a verification of a From address stands on screen: not run yet, running, settled with each verifier's latest, or still pending after the last attempt. */
+/** Where a verification of a From address stands on screen: not run yet, running, settled with each verifier's latest, or still pending at its deadline. */
 export type VerificationState = { status: 'idle' } | { status: 'pending' } | { status: 'settled'; verifications: MailSenderVerification[] } | { status: 'timed_out' }
 
 export type VerificationCalls = {
@@ -16,6 +16,8 @@ export type VerificationCalls = {
 
 type Run = VerificationCalls & {
   wait: (ms: number) => Promise<void>
+  /** The clock its deadline is read from, in milliseconds. */
+  now: () => number
   /** Whether the verification was left, such as by closing its dialog: it then asks nothing more and reports nothing. */
   stopped: () => boolean
   onState: (state: VerificationState) => void
@@ -23,20 +25,32 @@ type Run = VerificationCalls & {
 
 const pending = (verifications: MailSenderVerification[]) => verifications.some(({ state }) => state === 'pending')
 
+// What a request answers after the deadline, or not at all before it.
+const late = Symbol('late')
+
 /**
- * Runs one verification: starts it, then reads it again every `verifyInterval` while any verifier's is pending, at
- * most `verifyAttempts` times, and reports each state it reaches. Rejects as `start` or `read` reject.
+ * Runs one verification: starts it, then reads it again every `verifyInterval` while any verifier's is pending, until
+ * `verifyDeadline` has passed, and reports each state it reaches. Each request gets the time left at most, and an answer
+ * after the deadline counts as none. Rejects as `start` or `read` reject.
  */
-export const runVerification = async ({ start, read, wait, stopped, onState }: Run) => {
+export const runVerification = async ({ start, read, wait, now, stopped, onState }: Run) => {
+  const deadline = now() + verifyDeadline
+  const inTime = async (request: () => Promise<MailSenderVerification[]>) => {
+    const left = deadline - now()
+    if (left <= 0) return late
+    const answer = await Promise.race([request(), wait(left).then(() => late)])
+    return now() < deadline ? answer : late
+  }
+
   onState({ status: 'pending' })
-  let verifications = await start()
-  for (let attempt = 0; pending(verifications); attempt++) {
+  let verifications = await inTime(start)
+  while (verifications !== late && pending(verifications)) {
     if (stopped()) return
-    if (attempt === verifyAttempts) return onState({ status: 'timed_out' })
-    await wait(verifyInterval)
+    await wait(Math.min(verifyInterval, deadline - now()))
     if (stopped()) return
-    verifications = await read()
+    verifications = await inTime(read)
   }
   if (stopped()) return
+  if (verifications === late) return onState({ status: 'timed_out' })
   onState({ status: 'settled', verifications })
 }
