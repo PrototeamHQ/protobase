@@ -38,7 +38,7 @@ export const runVerification = async ({ start, read, wait, now, stopped, onState
   const inTime = async (request: () => Promise<MailSenderVerification[]>) => {
     const left = deadline - now()
     if (left <= 0) return late
-    const answer = await Promise.race([request(), wait(left).then(() => late)])
+    const answer = await Promise.race([request(), wait(left).then((): typeof late => late)])
     return now() < deadline ? answer : late
   }
 
