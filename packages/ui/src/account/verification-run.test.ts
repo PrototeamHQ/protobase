@@ -7,12 +7,13 @@ const verified: MailSenderVerification = { verifier: 'test-mail', state: 'verifi
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-// Each read answers the next of `answers` after `delay` milliseconds of the fake clock, or pending once they run out.
-const run = (started: MailSenderVerification[], answers: MailSenderVerification[][], { delay = 0, stopAfter = Infinity } = {}) => {
+// Each read answers the next of `answers` after `delay` milliseconds of the fake clock, or pending once they run out; with `fails`, it rejects instead.
+const run = (started: MailSenderVerification[], answers: MailSenderVerification[][], { delay = 0, stopAfter = Infinity, fails = false } = {}) => {
   const states: VerificationState[] = []
   const read = vi.fn(async () => {
     const answer = answers.shift() ?? [pending]
     await sleep(delay)
+    if (fails) throw new Error('read failed')
     return answer
   })
   const wait = vi.fn(sleep)
@@ -74,6 +75,20 @@ describe('a From address verification', () => {
     const { states, done } = run([pending], [[pending], [verified]], { delay: verifyDeadline })
     await settle(done)
     expect(states).toEqual([{ status: 'pending' }, { status: 'timed_out' }])
+  })
+
+  it('keeps the timed-out outcome when a request fails at the deadline', async () => {
+    const { states, done } = run([pending], [], { delay: verifyDeadline - verifyInterval, fails: true })
+    await settle(done)
+    expect(states).toEqual([{ status: 'pending' }, { status: 'timed_out' }])
+  })
+
+  it('rejects as a request fails before the deadline', async () => {
+    const { states, done } = run([pending], [], { delay: 1000, fails: true })
+    const failed = expect(done).rejects.toThrow('read failed')
+    await vi.runAllTimersAsync()
+    await failed
+    expect(states).toEqual([{ status: 'pending' }])
   })
 
   it('shows an answer that comes just before the deadline', async () => {

@@ -31,14 +31,17 @@ const late = Symbol('late')
 /**
  * Runs one verification: starts it, then reads it again every `verifyInterval` while any verifier's is pending, until
  * `verifyDeadline` has passed, and reports each state it reaches. Each request gets the time left at most, and an answer
- * after the deadline counts as none. Rejects as `start` or `read` reject.
+ * or failure after the deadline counts as none. Rejects as `start` or `read` reject before it.
  */
 export const runVerification = async ({ start, read, wait, now, stopped, onState }: Run) => {
   const deadline = now() + verifyDeadline
   const inTime = async (request: () => Promise<MailSenderVerification[]>) => {
     const left = deadline - now()
     if (left <= 0) return late
-    const answer = await Promise.race([request(), wait(left).then((): typeof late => late)])
+    const answer = await Promise.race([request(), wait(left).then((): typeof late => late)]).catch((error: unknown): typeof late => {
+      if (now() < deadline) throw error
+      return late
+    })
     return now() < deadline ? answer : late
   }
 
