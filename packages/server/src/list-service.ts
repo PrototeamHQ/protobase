@@ -90,7 +90,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       estimate: await estimateCount(trx, queryModel, filter, scope),
       ...(params.count === 'exact' && { counted: await countUpTo(trx, queryModel, exactCountLimit + 1, filter, scope) }),
       ...(params.labels !== undefined && { labels: await relatedLabels(trx, labels, rows) }),
-      token: subject && (await deps.liveTokens!.seal(trx, subject, { resource: entry.name, model: queryModel, scope, ...(filter && { filter }), fields: columns ?? Object.keys(model.fields) })),
+      token: subject && (await deps.liveTokens!.seal(trx, subject, { model: queryModel, scope, ...(filter && { filter }), fields: columns ?? Object.keys(model.fields) })),
     }
   })
 

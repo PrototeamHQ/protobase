@@ -39,6 +39,39 @@ const freePort = () =>
     })
   })
 
+// Resolves with whether protobase dev is ready, or exited because another socket held its port.
+const readyOrPortTaken = (dev: ChildProcess) =>
+  new Promise<'ready' | 'port taken'>((resolve, reject) => {
+    let output = ''
+    const collect = (chunk: Buffer) => {
+      output += chunk
+      if (output.includes('protobase dev ready')) resolve('ready')
+    }
+    dev.stdout?.on('data', collect)
+    dev.stderr?.on('data', collect)
+    // `close`, not `exit`: the output is whole only once its streams close
+    dev.once('close', (code) => {
+      if (/Port \d+ is in use by another server/.test(output)) resolve('port taken')
+      else reject(new Error(`protobase dev exited with ${code}:\n${output}`))
+    })
+  })
+
+// Starts protobase dev on a port `freePort` found, and on another one when a socket took that port between `freePort`
+// releasing it and dev binding it, as any client socket of a parallel test may. `started` gets each process as it starts,
+// so a start that never gets ready is stopped too.
+const devOnFreePort = async (projectDir: string, env: Record<string, string>, started: (dev: ChildProcess) => void) => {
+  for (let tries = 0; tries < 5; tries++) {
+    const port = await freePort()
+    const dev = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', path.join(projectDir, '.vite-cache')], {
+      cwd: projectDir,
+      env: { ...process.env, ...env },
+    })
+    started(dev)
+    if ((await readyOrPortTaken(dev)) === 'ready') return port
+  }
+  throw new Error('protobase dev found its port taken 5 times in a row')
+}
+
 describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a relay of its own', () => {
   let database: PostgresDatabase
   let projectDir: string
@@ -72,22 +105,8 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
     // The jobs schema, change capture and relay made above, as a migration of the app would record them, with the
     // store's names its config's auth gives.
     await recordModules(database.db, neededModules({ models, views: [], jobs: [], signIn: true, authStore: settingsStoreNames({ schema: 'public' }), realtime: { relay: { channels } } }))
-    const port = await freePort()
+    const port = await devOnFreePort(projectDir, env, (started) => (dev = started))
     base = `http://localhost:${port}`
-    dev = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', path.join(projectDir, '.vite-cache')], {
-      cwd: projectDir,
-      env: { ...process.env, ...env },
-    })
-    await new Promise<void>((resolve, reject) => {
-      let output = ''
-      const collect = (chunk: Buffer) => {
-        output += chunk
-        if (output.includes('protobase dev ready')) resolve()
-      }
-      dev.stdout?.on('data', collect)
-      dev.stderr?.on('data', collect)
-      dev.once('exit', (code) => reject(new Error(`protobase dev exited with ${code}:\n${output}`)))
-    })
   })
 
   afterAll(async () => {

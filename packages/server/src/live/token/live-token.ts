@@ -1,4 +1,5 @@
 import { EncryptJWT } from 'jose'
+import type { ChangeCondition } from './change-condition'
 
 /**
  * Who a live token is for: a signed-in person in their sign-in session, which ends it, or a visitor, bound to nothing.
@@ -7,11 +8,11 @@ import { EncryptJWT } from 'jose'
 export type LiveSubject = { user: string; session: string; expiresAt: Date } | { anonymous: true; expiresAt: Date }
 
 /**
- * What a live token holds besides its subject: the resource, `where`, the read's filter on the row alone as filter text
- * (none when the read keeps no row out), the fields whose values a subscriber may get, and `snapshot`, the read's
- * `pg_current_snapshot()`, which tells which transactions the read saw.
+ * What a live token holds besides its subject: `subs`, each table read with `where`, the read's filter on the row alone
+ * as a change stream condition (none when the read keeps no row out), the fields whose values a subscriber may get, and
+ * `snapshot`, the read's `pg_current_snapshot()`, which tells which transactions the read saw.
  */
-export type LiveRead = { resource: string; where?: string; fields: string[]; snapshot: string }
+export type LiveRead = { subs: { resource: string; where?: ChangeCondition }[]; fields: string[]; snapshot: string }
 
 /** The largest token sent: the response's whole header block stays under a proxy's default 4 KB buffer. */
 export const maxLiveTokenBytes = 3000

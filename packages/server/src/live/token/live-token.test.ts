@@ -1,11 +1,11 @@
 import { jwtDecrypt } from 'jose'
 import { describe, expect, it } from 'vitest'
 import { liveTokenKey } from './live-key'
-import { maxLiveTokenBytes, sealLiveToken } from './live-token'
+import { maxLiveTokenBytes, sealLiveToken, type LiveRead } from './live-token'
 
 const ticketKey = 'a-ticket-key-of-at-least-32-characters'
 const now = new Date('2026-11-26T12:00:00Z')
-const read = { resource: 'tasks', where: 'isNull(deleted_at) AND in(project_id, 1, 2)', fields: ['id', 'title'], snapshot: '100:104:101' }
+const read: LiveRead = { subs: [{ resource: 'tasks', where: { and: [{ is_null: 'deleted_at' }, { in: ['project_id', [1, 2]] }] } }], fields: ['id', 'title'], snapshot: '100:104:101' }
 const expiresAt = new Date('2026-11-26T13:00:00Z')
 
 describe('sealLiveToken', () => {
@@ -37,7 +37,7 @@ describe('sealLiveToken', () => {
 
   it('gives no token longer than a proxy takes in a header', async () => {
     const key = await liveTokenKey(ticketKey)
-    const long = { ...read, where: `in(project_id, ${Array.from({ length: 1000 }, (_, i) => i).join(', ')})` }
+    const long: LiveRead = { ...read, subs: [{ resource: 'tasks', where: { in: ['project_id', Array.from({ length: 1000 }, (_, i) => i)] } }] }
     expect(await sealLiveToken(key, 'shop', long, { anonymous: true, expiresAt }, now)).toBeUndefined()
     expect(maxLiveTokenBytes).toBeLessThan(4096)
   })
