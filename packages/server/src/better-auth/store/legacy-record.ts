@@ -31,9 +31,9 @@ export const stepsOfVersions = (versions: readonly number[]): AppliedStep[] => {
 /** The former record of versions, in the store's schema, as the store's names named it. */
 export const versionRecordTable = (names: StoreNames) => migrationNames(names).former(versionRecord)
 
-/** Why a store that records its migrations by version alone, in `table`, is refused, and how to bring it on. */
+/** Why a store that records its migrations by version alone, in `table`, is refused. */
 export const versionRecordRefusal = (table: string) =>
-  `The auth store records its migrations by version in ${table}, without auth_steps, as a Protobase before 0.130 left it: bring the project to Protobase 0.130 first, write and apply its migration with that version's \`protobase migration\` and \`protobase migrate\`, then run this again`
+  `The auth store records its migrations by version in ${table}, without auth_steps, as a Protobase before 0.130 left it, which no step of this version of Protobase reads`
 
 /** Refuses a store without `auth_steps` that has the former record of versions. */
 export const refuseVersionRecord = async (db: Kysely<any>, names: StoreNames) => {
