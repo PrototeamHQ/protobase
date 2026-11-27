@@ -8,7 +8,7 @@ import { commentsIndexes, commentsTable, commentsTableSql } from './comments-sql
 const readComments = async (db: Db): Promise<ModuleModel | undefined> => {
   if (!(await relationFound(db, commentsTable))) return
   if (!(await hasIndexes(db, 'comments', 'comments', commentsIndexes.map(([name]) => name)))) {
-    throw new Error(`The comments table ${commentsTable} lacks indexes no step of this version of Protobase records: add them with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The comments table ${commentsTable} lacks indexes no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: {} }
 }

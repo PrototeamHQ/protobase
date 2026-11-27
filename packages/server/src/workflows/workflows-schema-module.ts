@@ -17,7 +17,7 @@ const readWorkflows = async (db: Db, { names }: ModuleInput): Promise<ModuleMode
   if (version !== undefined && version > workflowsVersion) throw new Error(`The ${schema} schema is at version ${version}, newer than the ${workflowsVersion} this version of Protobase writes: upgrade Protobase`)
   if (version !== workflowsVersion || !(await tablesFound(db, schema, ['triggers']))) {
     throw new Error(
-      `The ${schema} schema is at ${version === undefined ? 'a version' : `version ${version}`} no step of this version of Protobase records: bring it to version ${workflowsVersion} with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`,
+      `The ${schema} schema is at ${version === undefined ? 'a version' : `version ${version}`} no step of this version of Protobase records`,
     )
   }
   const functions = await triggersFound(db, schema, [...workflowsTriggers, ...statusTriggers])

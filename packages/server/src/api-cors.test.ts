@@ -48,6 +48,8 @@ describe('apiCors', () => {
       expect(response.headers.get('access-control-allow-origin')).toBe(origin)
       expect(response.headers.get('vary')).toContain('Origin')
       expect(response.headers.get('access-control-expose-headers')).toContain('location')
+      expect(response.headers.get('access-control-expose-headers')).toContain('protobase-live')
+      expect(response.headers.get('access-control-expose-headers')).toContain('preference-applied')
       expect(response.headers.get('access-control-allow-credentials')).toBeNull()
     }
   })
@@ -67,7 +69,7 @@ describe('apiCors', () => {
     expect(response.status).toBe(204)
     expect(Object.fromEntries(response.headers)).toMatchObject({
       'access-control-allow-origin': own,
-      'access-control-allow-headers': 'authorization,content-type,if-match,if-none-match,apikey,x-client-info,x-supabase-api-version',
+      'access-control-allow-headers': 'authorization,content-type,if-match,if-none-match,prefer,apikey,x-client-info,x-supabase-api-version',
       'access-control-allow-methods': 'GET,HEAD,POST,PUT,PATCH,DELETE',
       'access-control-max-age': '600',
     })

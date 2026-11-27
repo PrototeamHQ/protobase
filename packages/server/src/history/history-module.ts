@@ -11,7 +11,7 @@ const readHistory = async (db: Db, { names }: ModuleInput): Promise<ModuleModel 
   const { rows } = await sql<{ found: boolean }>`select to_regclass(${`${quoteIdent(schema)}."history"`}) is not null as found`.execute(db)
   if (!rows[0]!.found) return
   if (!(await hasIndexes(db, schema, 'history', historyIndexes.map(([name]) => name)))) {
-    throw new Error(`The history table in schema "${schema}" lacks indexes no step of this version of Protobase records: add them with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The history table in schema "${schema}" lacks indexes no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: {}, names }
 }

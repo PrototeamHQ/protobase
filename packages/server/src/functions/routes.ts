@@ -15,6 +15,7 @@ import type { Authenticator, Session } from '../types'
 import { socketAcceptor } from './accept-socket'
 import { ownMailbox } from './own-mailbox'
 import type { ChannelSender } from '../channels/channel-sender'
+import { liveRefresh, type LiveRefresh } from '../live/refresh/live-refresh'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
 import { functionGate, requireGate, type FunctionGate } from './function-gate'
 import type { AppScope } from '../organization-scope/app-scope'
@@ -38,6 +39,8 @@ export type FunctionRoutesInput = {
   personalMailer?: (userId: string) => PersonalMail
   /** What a function broadcasts to record channels with. */
   channels: ChannelSender
+  /** What a function tells a person's open pages to read again with; without it, an app with no live stream, it does nothing. */
+  live?: LiveRefresh
   onError: ErrorHandler
   /** After a call ended, its writes through `db` committed: has the change dispatcher deliver them now, as after an API write. */
   wake: () => void
@@ -74,7 +77,7 @@ const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerC
  * A function may answer an upgrade with a socket, only once it returned. While it is open, its caller is checked again
  * every minute: a protected function's always, a public one's once `caller()` resolved.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, decryptField, personalMailer = noPersonalMail, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls, report, scope }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, live = liveRefresh(undefined), decryptField, personalMailer = noPersonalMail, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls, report, scope }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
   app.onError(onError)
   const sessionOf = (request: Request) => (isUpgrade(request) ? upgradeAuthenticate(request) : authenticate(request))
@@ -111,7 +114,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
         }
         const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
         // A public function works in no organization, also once it asks for its caller.
-        const context: PublicFunctionContext = { name, db: scopedDb(db, (await scope()).tables, undefined), channels, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls: callsAccess(calls, resolveCaller) }
+        const context: PublicFunctionContext = { name, db: scopedDb(db, (await scope()).tables, undefined), channels, live, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls: callsAccess(calls, resolveCaller) }
         return acceptor.answer(name, await invokeFunction(name, fn, request, context))
       }
       const caller = await callerOf(c.req.raw)
@@ -121,7 +124,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const { user } = caller.session
       const reader = { function: name, actor: { id: user.id, roles: [...user.roles] }, origin: auditOrigin(c.req.raw.headers) }
       const { tables, organizationOf } = await scope()
-      const context: FunctionContext = { name, db: scopedDb(db, tables, organizationOf(caller.session)), channels, ...caller, caller: async () => caller, decryptField: decryptField(reader), personalMail: ownMailbox(caller.session, personalMailer), acceptWebSocket: acceptor.accept, calls: callsAccess(calls, async () => caller) }
+      const context: FunctionContext = { name, db: scopedDb(db, tables, organizationOf(caller.session)), channels, live, ...caller, caller: async () => caller, decryptField: decryptField(reader), personalMail: ownMailbox(caller.session, personalMailer), acceptWebSocket: acceptor.accept, calls: callsAccess(calls, async () => caller) }
       return acceptor.answer(name, await invokeFunction(name, fn, request, context))
     }))
   }

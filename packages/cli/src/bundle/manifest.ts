@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { oauthWellKnownPaths, pngIcons, type AppIcons } from '@protobase/server'
+import type { BundleChanges } from '../build/bundle-changes'
 import type { relayAppPart } from '../relay/app-entry'
 
 // The deploy bundle's table of contents, read by `protobase serve <dir>` and by any host that serves a bundle.
@@ -71,6 +72,9 @@ export type BundleManifest = {
   // With `realtime.relay`, and only then, the app's part of its entry in the relay's apps file, which a host that runs
   // the relay completes with the app's address, id and keys.
   realtime?: BundleRealtime
+  // The change model a reader of the database's WAL maps rows by (`bundleChanges`): each resource's table, key, tenant
+  // and personal columns. A bundle built before it names none.
+  changes?: BundleChanges
 }
 
 export const isApiPath = (api: readonly string[], pathname: string) =>
@@ -116,6 +120,17 @@ const isRealtime = (value: unknown): value is BundleRealtime =>
   (value.client_events === undefined || (isObject(value.client_events) && isObject(value.client_events.channels))) &&
   (value.presence === undefined || (isObject(value.presence) && typeof value.presence.path === 'string' && Number.isInteger(value.presence.grace_seconds)))
 
+const isChangeResource = (value: unknown) =>
+  isObject(value) &&
+  isObject(value.table) &&
+  (value.table.schema === null || typeof value.table.schema === 'string') &&
+  typeof value.table.name === 'string' &&
+  isStringList(value.key) &&
+  (value.tenant === null || typeof value.tenant === 'string') &&
+  isStringList(value.personal)
+
+const isChanges = (value: unknown): value is BundleChanges => isObject(value) && isObject(value.resources) && Object.values(value.resources).every(isChangeResource)
+
 const isIcons = (value: unknown): value is AppIcons =>
   isObject(value) && typeof value.favicon === 'boolean' && isStringList(value.png) && value.png.every((icon) => icon in pngIcons)
 
@@ -125,7 +140,7 @@ export type BundleLayout = Omit<BundleManifest, 'protobase'>
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { builtAt, server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations, realtime } = manifest
+  const { builtAt, server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations, realtime, changes } = manifest
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
@@ -140,6 +155,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
   if (migrations !== undefined && typeof migrations !== 'string') throw new Error(`${file} has a migrations that is no path`)
   if (realtime !== undefined && !isRealtime(realtime)) throw new Error(`${file} has a realtime that is not { client_events, presence } with its channels and a presence path and grace`)
+  if (changes !== undefined && !isChanges(changes)) throw new Error(`${file} has a changes that is not { resources } with each resource's table, key, tenant and personal columns`)
   return {
     version: 3,
     ...(builtAt !== undefined && { builtAt }),
@@ -156,6 +172,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
     ...(nodeModules === undefined ? {} : { nodeModules }),
     ...(migrations === undefined ? {} : { migrations }),
     ...(realtime && { realtime }),
+    ...(changes && { changes }),
   }
 }
 

@@ -9,7 +9,7 @@ const ended = Object.assign(new Error('session ended'), { final: true })
 const setup = (channels = ['conversations/7', 'conversations/8']) => {
   const relay = fakeRelay()
   const ticket = vi.fn(async () => ({ ticket: `t${ticket.mock.calls.length}`, url: 'wss://relay.test/socket', channels }))
-  const client = relayClient({ ticket, socket: relay.open, retryDelay: () => 1000, final: (error) => error === ended })
+  const client = relayClient({ ticket, socket: relay.open, events: relay.open, retryDelay: () => 1000, final: (error) => error === ended })
   // Opens the latest socket and answers every join it sent with ok, but those `refused` names.
   const open = async (refused: string[] = []) => {
     await vi.advanceTimersByTimeAsync(0)
@@ -194,6 +194,7 @@ describe('relayClient', () => {
     expect(relay.sockets).toHaveLength(0)
     await vi.advanceTimersByTimeAsync(1000)
     expect(relay.sockets).toHaveLength(1)
+    relay.latest().opened()
     relay.latest().drop()
     ticket.mockRejectedValueOnce(ended)
     await vi.advanceTimersByTimeAsync(1000)

@@ -8,8 +8,6 @@ import { regclass } from './schema'
 import { devicesTableSql, qualified } from './schema-sql'
 import { tableNames, type TableNames } from './table-names'
 
-const upgradeFirst = 'with `protobase migration` and `protobase migrate` of Protobase 0.14.2 first, then run this command again'
-
 // The framework's kind checks of a table written before devices could be relay devices (`legacyKindChecks`).
 const kindChecksWithoutRelay = async (db: Db, oid: number, names: TableNames<DeviceColumn>) => {
   const { rows } = await sql<KindCheck>`select c.conname as name, pg_get_constraintdef(c.oid) as def from pg_constraint c
@@ -31,7 +29,7 @@ const readDevices = async (db: Db, input: ModuleInput): Promise<ModuleModel | un
   if (oid === null) return
   const numbers = await columnNumbers(db, oid, names)
   if (numbers.session_id === undefined || (await kindChecksWithoutRelay(db, oid, names)).length > 0) {
-    throw new Error(`The devices table ${devices} was written before devices kept their session and could be relay devices, which no step of this version of Protobase records: bring it there ${upgradeFirst}`)
+    throw new Error(`The devices table ${devices} was written before devices kept their session and could be relay devices, which no step of this version of Protobase records`)
   }
   const missing = deviceColumns.find((column) => numbers[column] === undefined)
   if (missing !== undefined) throw new Error(`The devices table ${devices} has no column "${names.columns[missing]}": add it, or name the table's own with notifications: { devices: { columns: { ${missing}: ... } } } in protobase.config.ts`)

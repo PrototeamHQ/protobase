@@ -7,6 +7,7 @@ import { storeSqlOf } from '../store/store-sql'
 import { acrossOrganizations, inOrganization, inSignInScope } from '../../organization-scope/sign-in-organization'
 import { parseAppRoles } from './app-roles'
 import { builderName, rowsIn, type HostScope } from './host-scope'
+import { notDefaultOrganization } from './not-default'
 import { membershipRoles } from './role-definitions'
 import { findMember, isOwner, organizationRoleOf, setAppRoles, type AuthContext, type OrganizationRole, type StoredMember, type StoredOrganization } from './store'
 
@@ -234,11 +235,11 @@ export const ownOrganizationsWithoutMembers = (auth: AdminAuth, userId: string) 
 
 const ownEmptyOrganizations = async (auth: AdminAuth, userId: string) => {
   const settings = settingsOf(auth)
-  const store = storeSqlOf(await contextOf(auth))
+  const context = await contextOf(auth)
+  const store = storeSqlOf(context)
   const member = store.table('member')
   const m = member.columns
-  const defaultId = settings.options.default?.id
-  const notDefault = defaultId === undefined ? sql`` : sql`and cast(o.id as text) <> ${defaultId}`
+  const notDefault = notDefaultOrganization(context.options, settings.options.default?.id)
   const { rows } = await sql`insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
     select ${store.newId}, o.id, ${userId}, 'owner', ${JSON.stringify(settings.creatorAppRoles)}::jsonb, ${new Date()} from ${store.table('organization')} o
     where not exists (select from ${member} m where m.${m.organization_id} = o.id) ${notDefault}

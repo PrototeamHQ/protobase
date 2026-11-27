@@ -100,12 +100,12 @@
     "(hooks)#0": [
       {"sql":"select count(*) as count from domains","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["0"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select count(*) as \"count\" from \"domains\"","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["0"]]}},
       {"sql":"insert into \"domains\" (\"name\", \"selector\") values ($1, $2) returning \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\"","params":["xn--bcher-kva.de","pb1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["1","xn--bcher-kva.de","pb1"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\" from \"domains\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["1","xn--bcher-kva.de","pb1"]]}},
       {"sql":"update \"domains\" as t set \"name\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\"","params":["example.org","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["1","example.org","pb1"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -122,7 +122,7 @@
   ".prepare() on every write path > refuses a value the client sends for a field only the hook fills": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ],
     "(hooks)#2": [
@@ -134,7 +134,7 @@
     "(hooks)#0": [
       {"sql":"select count(*) as count from domains","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["1"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*) as count from domains","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["1"]]}}
     ],
@@ -147,7 +147,7 @@
     "(hooks)#0": [
       {"sql":"select count(*) as count from domains","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["1"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select count(*) as \"count\" from \"domains\"","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["1"]]}},
       {"sql":"insert into \"domains\" (\"name\", \"selector\") values ($1, $2) returning \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\"","params":["shop.example","pb2"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["2","shop.example","pb2"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -162,7 +162,7 @@
     "(hooks)#0": [
       {"sql":"select count(*) as count from domains","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["2"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select count(*) as \"count\" from \"domains\"","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["2"]]}},
       {"sql":"insert into \"domains\" (\"name\", \"selector\") values ($1, $2) returning \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\"","params":["mail.example","pb3"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["3","mail.example","pb3"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -172,7 +172,7 @@
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\" from \"domains\" as t where \"id\" = $1 limit 1","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["3","mail.example","pb3"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config($1, $2, true), pg_logical_emit_message(true, $3, $4::text) is not null","params":["statement_timeout","1000","protobase_actor","{\"id\":\"Dnc8lXbQBVyYpslAIcZDfxVHw7nfgsKp\",\"roles\":[\"sales\"]}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["?column?",16]],"rows":[["1s","t"]]}},
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\" from \"domains\" as t where \"id\" = $1 limit 1 for update","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["3","mail.example","pb3"]]}},
       {"sql":"update \"domains\" as t set \"name\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"name\" as \"name\", \"selector\" as \"selector\"","params":["post.example","3"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["name",25],["selector",25]],"rows":[["3","post.example","pb3"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},

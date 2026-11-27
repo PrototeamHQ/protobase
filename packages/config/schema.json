@@ -6596,6 +6596,10 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "stream": {
+          "description": "Whether `protobase migration` writes the event triggers that put schema changes into the WAL as logical messages,\nwhich the change stream reads in order with the rows. Creating them takes a superuser.",
+          "type": "boolean"
         }
       },
       "additionalProperties": false

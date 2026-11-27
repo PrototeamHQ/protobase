@@ -32,10 +32,10 @@ export const withMobileOrigins = (allowed: CorsOrigins | undefined, mobile: bool
   return [...new Set([...(allowed ?? []), ...capacitorOrigins])]
 }
 
-// Bearer tokens, not cookies, so no credentials. A write sends its ETag back in `If-Match`, `/meta` in `If-None-Match`;
-// supabase-js sends the app's key in `apikey` and names itself in `x-client-info` and `x-supabase-api-version`.
-const allowHeaders = ['authorization', 'content-type', 'if-match', 'if-none-match', 'apikey', 'x-client-info', 'x-supabase-api-version']
-const exposeHeaders = ['location', 'etag', 'x-meta-version', 'x-protobase-warning']
+// Bearer tokens, not cookies, so no credentials. A write sends its ETag back in `If-Match`, `/meta` in `If-None-Match`,
+// a read asks for a live token in `Prefer` and gets it in `Protobase-Live`; supabase-js sends the app's key in `apikey` and names itself in `x-client-info` and `x-supabase-api-version`.
+const allowHeaders = ['authorization', 'content-type', 'if-match', 'if-none-match', 'prefer', 'apikey', 'x-client-info', 'x-supabase-api-version']
+const exposeHeaders = ['location', 'etag', 'x-meta-version', 'x-protobase-warning', 'preference-applied', 'protobase-live']
 
 export type ApiCorsInput = {
   /** The app's own origins, always allowed: browser code on one may call the API on another. */

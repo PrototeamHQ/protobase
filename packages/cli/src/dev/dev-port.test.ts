@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { devPort, devPortFile, pickFreePort, randomPorts, readSavedPort, savePort } from './dev-port'
+import { devPort, devPortFile, pickFreePort, publishPort, randomPorts, readSavedPort, savePort } from './dev-port'
 
 let projectDir: string
 beforeEach(async () => {
@@ -15,6 +15,7 @@ const writeSaved = async (text: string) => {
   await mkdir(path.join(projectDir, '.protobase'), { recursive: true })
   await writeFile(path.join(projectDir, devPortFile), text)
 }
+const folder = () => readdir(path.join(projectDir, '.protobase'))
 const picks = (...ports: number[]) => async () => ports.shift()!
 
 describe('devPort', () => {
@@ -56,6 +57,34 @@ describe('savePort', () => {
     expect((await stat(file)).mtime).toEqual(past)
     await savePort(projectDir, 6123)
     expect(await saved()).toBe('6123\n')
+  })
+
+  it('replaces the saved port through a temporary file it leaves nothing of', async () => {
+    await writeSaved('23456\n')
+    await savePort(projectDir, 6123)
+    expect(await saved()).toBe('6123\n')
+    expect(await folder()).toEqual(['dev-port'])
+  })
+})
+
+describe('publishPort', () => {
+  it('saves the port when the project has none', async () => {
+    expect(await publishPort(projectDir, 23456)).toBe(23456)
+    expect(await saved()).toBe('23456\n')
+    expect(await folder()).toEqual(['dev-port'])
+  })
+
+  it('returns the port another run published first instead of its own', async () => {
+    await writeSaved('34567\n')
+    expect(await publishPort(projectDir, 23456)).toBe(34567)
+    expect(await saved()).toBe('34567\n')
+    expect(await folder()).toEqual(['dev-port'])
+  })
+
+  it('makes two first runs started together agree on one port', async () => {
+    const ports = await Promise.all([devPort(projectDir, undefined, picks(23456)), devPort(projectDir, undefined, picks(34567))])
+    expect(ports[0]).toBe(ports[1])
+    expect(await saved()).toBe(`${ports[0]}\n`)
   })
 })
 

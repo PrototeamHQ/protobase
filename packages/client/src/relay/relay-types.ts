@@ -23,7 +23,7 @@ export type RelayEvent = {
   to?: string
 }
 
-/** The relay's connection: `connecting`, also between tries; `open`; `ended` once the app refused a ticket, such as for a session that ended. */
+/** The relay's connection: `connecting`, also between tries; `open`; `ended` once the app refused a ticket or the relay closed the connection for good, such as for a session that ended. */
 export type RelayStatus = 'connecting' | 'open' | 'ended'
 
 export type RelayHandlers = {

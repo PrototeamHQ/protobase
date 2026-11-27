@@ -28,9 +28,9 @@ describe('offlineStepsMigration', () => {
     expect(offlineStepsMigration(names, store(latest), organizations)).toBeUndefined()
   })
 
-  it('refuses a snapshot whose store records versions instead of steps, naming the release to migrate through', () => {
+  it('refuses a snapshot whose store records versions instead of steps', () => {
     expect(() => offlineStepsMigration(names, store({ ...latest, auth: 5 }, false), organizations)).toThrow(
-      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it: bring the project to Protobase 0.130 first',
+      /^The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0\.130 left it, which no step of this version of Protobase reads$/,
     )
   })
 

@@ -11,7 +11,12 @@ export type RelaySocketLike = Pick<SocketLike, 'readyState' | 'send' | 'close' |
 export type RelaySocketOptions = {
   /** A fresh ticket, asked for on every connect: each one connects once. */
   ticket: () => Promise<RelayTicket>
+  /** Opens a WebSocket. */
   socket: (url: string) => RelaySocketLike
+  /** Opens a server-sent event connection (`sseSocket`), for a network where a WebSocket never opens. */
+  events: (url: string) => RelaySocketLike
+  /** How long a WebSocket may take to open before the connection goes over server-sent events instead; 2.5 seconds by default. */
+  fallbackMs?: number
   /** How long to wait before connecting again after the `attempt`th failure in a row. */
   retryDelay: (attempt: number) => number
   /** Whether a ticket's refusal ends the connection rather than being tried again, such as for a session that ended. */
@@ -20,7 +25,7 @@ export type RelaySocketOptions = {
   onOpen: (channels: readonly string[], again: boolean) => void
   /** The socket dropped; it connects again by itself with a fresh ticket. */
   onDown: () => void
-  /** The app refused a ticket for good. */
+  /** The app refused a ticket for good, or the relay closed the connection for good. */
   onEnded: (error: unknown) => void
   /** Each frame that is no reply. */
   onFrame: (frame: Frame) => void
@@ -31,26 +36,42 @@ export const heartbeatMs = 30_000
 
 const openState = 1
 
+/** The close code a relay ends a connection with for good, such as for a session the app closed or an app it no longer serves. */
+const finalCode = 1000
+
+const codeOf = (event: unknown) => (event as { code?: unknown } | undefined)?.code
+
 /** The socket's address with its ticket, in the Phoenix V2 shape. */
 export const socketAddress = (url: string, ticket: string) => `${url.replace(/\/+$/, '')}/websocket?vsn=2.0.0&ticket=${encodeURIComponent(ticket)}`
+
+/** The server-sent event stream's address with its ticket: the endpoint's `/sse`, over HTTP. */
+export const eventsAddress = (url: string, ticket: string) => `${url.replace(/\/+$/, '').replace(/^ws/, 'http')}/sse?vsn=2.0.0&ticket=${encodeURIComponent(ticket)}`
 
 type Pending = { resolve: () => void; reject: (error: unknown) => void }
 
 /**
  * The one socket to the relay: opened on `start` with a fresh ticket, connected again with another after a pause that
  * grows with each failure while it is wanted, closed on `stop`. A socket the relay closes, for any reason, is connected
- * again the same way, so a ticket listing channels the person joined since is taken up.
+ * again the same way, so a ticket listing channels the person joined since is taken up; one it closes with 1000 is
+ * closed for good, as by `stop`.
+ *
+ * It tries a WebSocket first. When that closes before it opened, or does not open within `fallbackMs`, and no
+ * WebSocket opened before, the network blocks them: it connects again at once over server-sent events, and stays on
+ * them until the page loads again.
  */
-export const relaySocket = ({ ticket, socket: open, retryDelay, final, onOpen, onDown, onEnded, onFrame }: RelaySocketOptions) => {
+export const relaySocket = ({ ticket, socket: open, events, fallbackMs = 2_500, retryDelay, final, onOpen, onDown, onEnded, onFrame }: RelaySocketOptions) => {
   let socket: RelaySocketLike | undefined
   let wanted = false
   let connecting = false
   let wasOpen = false
   let failures = 0
+  let overEvents = false
+  let websocketOpened = false
   let lastRef = 0
   let heartbeat: string | undefined
   let beat: ReturnType<typeof setInterval> | undefined
   let retry: ReturnType<typeof setTimeout> | undefined
+  let upgrade: ReturnType<typeof setTimeout> | undefined
   const pending = new Map<string, Pending>()
 
   const dropPending = () => {
@@ -82,9 +103,15 @@ export const relaySocket = ({ ticket, socket: open, retryDelay, final, onOpen, o
       wanted = false
       return onEnded(got.error)
     }
-    const current = open(socketAddress(got.answer.url, got.answer.ticket))
+    const websocket = !overEvents
+    const current = websocket ? open(socketAddress(got.answer.url, got.answer.ticket)) : events(eventsAddress(got.answer.url, got.answer.ticket))
     socket = current
+    let opened = false
+    if (websocket) upgrade = setTimeout(() => current.close(), fallbackMs)
     current.onopen = () => {
+      clearTimeout(upgrade)
+      opened = true
+      if (websocket) websocketOpened = true
       failures = 0
       heartbeat = undefined
       beat = setInterval(() => {
@@ -108,12 +135,22 @@ export const relaySocket = ({ ticket, socket: open, retryDelay, final, onOpen, o
       if (reply.ok) waiting.resolve()
       else waiting.reject(new RelayRefusal(reply.reason))
     }
-    current.onclose = () => {
+    current.onclose = (event) => {
       if (socket !== current) return
       clearInterval(beat)
+      clearTimeout(upgrade)
       socket = undefined
       dropPending()
       if (!wanted) return
+      if (codeOf(event) === finalCode) {
+        wanted = false
+        wasOpen = false
+        return onEnded(new RelayRefusal('closed'))
+      }
+      if (websocket && !opened && !websocketOpened) {
+        overEvents = true
+        return void connect()
+      }
       onDown()
       later()
     }
@@ -132,6 +169,7 @@ export const relaySocket = ({ ticket, socket: open, retryDelay, final, onOpen, o
       clearTimeout(retry)
       retry = undefined
       clearInterval(beat)
+      clearTimeout(upgrade)
       const current = socket
       socket = undefined
       dropPending()

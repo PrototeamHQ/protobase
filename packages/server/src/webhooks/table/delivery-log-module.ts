@@ -10,7 +10,7 @@ const readDeliveryLog = async (db: Db, { names }: ModuleInput): Promise<ModuleMo
   const schema = names.schema!
   if (!(await relationFound(db, `${quoteIdent(schema)}."delivery_log"`))) return
   if (!(await hasIndexes(db, schema, 'delivery_log', deliveryLogIndexes))) {
-    throw new Error(`The delivery log in schema "${schema}" lacks indexes no step of this version of Protobase records: add them with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The delivery log in schema "${schema}" lacks indexes no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: {}, names }
 }

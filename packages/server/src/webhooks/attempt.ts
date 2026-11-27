@@ -1,4 +1,5 @@
 import type { ChannelSender } from '../channels/channel-sender'
+import type { LiveRefresh } from '../live/refresh/live-refresh'
 import type { ScopedDb } from '@protobase/query'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type PublicFunctionContext } from '../functions/define-function'
 import type { FunctionRecords } from '../functions/records'
@@ -20,6 +21,7 @@ export type AttemptContext = {
   functions: Record<string, ApiFunction>
   records: (session: Session) => FunctionRecords
   channels: ChannelSender
+  live: LiveRefresh
   /** 1 for the first try. */
   attempt: number
   signal: AbortSignal
@@ -70,7 +72,7 @@ const callFunction = async (name: string, subscription: SubscriptionDefinition, 
   const acceptWebSocket = () => {
     throw new Error(`The function "${name}" accepted a WebSocket, but a webhook delivery is no upgrade`)
   }
-  const functionContext: PublicFunctionContext = { name, db: context.db, channels: context.channels, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket(), remove: noCalls, of: noCalls } }
+  const functionContext: PublicFunctionContext = { name, db: context.db, channels: context.channels, live: context.live, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket(), remove: noCalls, of: noCalls } }
   return invokeFunction(name, fn, new Request('http://protobase.internal/', await delivery(event, options, signal)), fn.options.public ? functionContext : { ...functionContext, ...caller })
 }
 

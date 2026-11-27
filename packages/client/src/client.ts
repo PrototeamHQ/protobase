@@ -10,6 +10,7 @@ import { sharedLive } from './shared-live'
 import { channelsClient } from './channels'
 import { relayClient } from './relay/relay-client'
 import { fetchTicket, ticketRefused } from './relay/relay-ticket'
+import { sseSocket } from './relay/sse-socket'
 import { bridgesClient } from './bridges'
 import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
@@ -428,6 +429,7 @@ export const createClient = (options: ClientOptions = {}) => {
   const relay = relayClient({
     ticket: () => fetchTicket(send),
     socket: (url) => openSocket(url, []),
+    events: (url) => sseSocket(url, options.fetch ?? ((input, init) => fetch(input, init))),
     retryDelay: (attempt) => Math.min(30_000, 1000 * 2 ** attempt),
     final: ticketRefused,
   })

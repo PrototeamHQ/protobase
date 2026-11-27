@@ -15,7 +15,7 @@ const readRealtimeRelay = async (db: Db): Promise<ModuleModel | undefined> => {
   const { found, spaced } = rows[0]!
   if (found === 0) return
   if (found < relayTables.length || spaced < spacedTables.length) {
-    throw new Error(`The ${relaySchema} schema lacks tables or columns no step of this version of Protobase records: bring it there with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`)
+    throw new Error(`The ${relaySchema} schema lacks tables or columns no step of this version of Protobase records`)
   }
   return { lastStep: 1, replaceables: {} }
 }
