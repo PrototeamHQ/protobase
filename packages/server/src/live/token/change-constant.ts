@@ -24,8 +24,10 @@ const integerOf = (text: string, ordered: boolean) => {
   return ordered ? undefined : canonical
 }
 
-// A related record's key, whose type the field does not say, so sent as text for equality only, which matches an integer
-// key and a text key alike: a value Postgres could read as another spelling of an integer or a uuid key is left out.
+// A related record's key, whose type the field does not say, so sent as text for equality only. The stream compares a
+// string with the column's text byte by byte, and Postgres prints an integer key in one canonical form, so `"4"` meets an
+// integer key of 4 as it meets a text key of "4"; a number would compare a text key numerically, which Postgres does not.
+// A value Postgres could read as another spelling of an integer or a uuid key is left out.
 const keyText = (text: string, ordered: boolean) => {
   if (ordered) return
   if (/^\s*[+-]?\d/.test(text)) return /^-?\d+$/.test(text) && BigInt(text).toString() === text ? text : undefined
