@@ -7,6 +7,7 @@ import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { SectionError } from './account-section'
+import { dialogTurn } from './dialog-turn'
 import { MailSenderDialog, type MailSenderInput } from './mail-sender-dialog'
 import { ListingNotices } from './listing-notices'
 import { text } from './messages'
@@ -64,6 +65,7 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
+  const [turn] = useState(dialogTurn)
   // Set at once, unlike `busy`, so a second click before the next render changes nothing twice.
   const inFlight = useRef(false)
   const chosen = senders.find((sender) => sender.isDefault)
@@ -72,19 +74,25 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
     if (window.location.hash === `#${fromAddressesAnchor}`) heading.current?.focus()
   }, [])
 
+  const open = (next: Editing) => {
+    turn.advance()
+    setEditing(next)
+  }
+
   const close = () => {
+    turn.advance()
     setEditing(undefined)
     setError(undefined)
   }
 
-  // What the action answers is the dialog to show next, if any.
+  // What the action answers is the dialog to show next, if any, unless the dialog it started from was closed meanwhile.
   const attempt = async (action: () => Promise<Editing | void>) => {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
     setError(undefined)
     try {
-      setEditing((await action()) || undefined)
+      await turn.run(action, (next) => setEditing(next || undefined))
     } catch (failure) {
       // The browser's fetch rejects with a TypeError when the connection fails, before or after the server acted.
       if (failure instanceof TypeError) return setError(text('noAnswerFromServer'))
@@ -164,10 +172,10 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
               <Badge tone={state.tone}>{state.label}</Badge>
               {sender.isDefault && <Badge tone="blue">{text('default')}</Badge>}
               {sender.sharedAt && <Badge tone="neutral">{text('shared')}</Badge>}
-              <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'change', sender })}>
+              <Button size="sm" variant="ghost" onClick={() => open({ kind: 'change', sender })}>
                 {text('edit')}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'remove', sender })}>
+              <Button size="sm" variant="ghost" onClick={() => open({ kind: 'remove', sender })}>
                 {text('remove')}
               </Button>
               {hint && <p className="basis-full pl-7 text-xs text-muted-foreground">{hint}</p>}
@@ -177,7 +185,7 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
         </ul>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setEditing({ kind: 'add' })}>
+        <Button onClick={() => open({ kind: 'add' })}>
           <Plus className="size-3.5" />
           {text('addFromAddress')}
         </Button>
