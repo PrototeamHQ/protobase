@@ -75,6 +75,34 @@ describe('withDevRelay', () => {
     expect(stop).toHaveBeenCalledTimes(1)
   })
 
+  it('starts one relay for an edit made while the relay starts, and starts again after it for a changed entry', async () => {
+    const [first, again] = await Promise.all([withDevRelay(config(), devUrl, none), withDevRelay(config(), devUrl, none)])
+    expect(again.realtime!.relay!.url).toBe(first.realtime!.relay!.url)
+    expect(started).toHaveBeenCalledTimes(1)
+    await Promise.all([withDevRelay(config({ app: 'chat2' }), devUrl, none), withDevRelay(config({ app: 'chat3' }), devUrl, none)])
+    expect(started).toHaveBeenCalledTimes(3)
+    expect(stop).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops the relay a start under way produces when the dev server closes', async () => {
+    let resolveStart!: (relay: { stop: typeof stop }) => void
+    started.mockReturnValueOnce(new Promise((resolve) => (resolveStart = resolve)))
+    const starting = withDevRelay(config(), devUrl, none)
+    const stopping = stopDevRelay()
+    resolveStart({ stop })
+    await Promise.all([starting, stopping])
+    expect(stop).toHaveBeenCalledTimes(1)
+    await stopDevRelay()
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts again after a start that failed', async () => {
+    started.mockRejectedValueOnce(new Error('spawn failed'))
+    await expect(withDevRelay(config(), devUrl, none)).rejects.toThrow('spawn failed')
+    await withDevRelay(config(), devUrl, none)
+    expect(started).toHaveBeenCalledTimes(2)
+  })
+
   it('refuses an app id the relay would not take, before starting it', async () => {
     await expect(withDevRelay(config({ app: 'Chat App' }), devUrl, none)).rejects.toThrow(/realtime.relay.app or PROTOBASE_REALTIME_APP must be/)
     expect(started).not.toHaveBeenCalled()
