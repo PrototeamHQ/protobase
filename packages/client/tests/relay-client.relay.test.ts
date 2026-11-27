@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { relayClient } from '../src/relay/relay-client'
 import type { RelaySocketLike } from '../src/relay/relay-socket'
 import type { RelayEvent, RelayNotice } from '../src/relay/relay-types'
+import { sseSocket } from '../src/relay/sse-socket'
 import { realtimeBinary } from '../../../test-support/realtime-binary'
 
 // The client's relay against a real relay process: one socket per client joining the channels its ticket lists, a
@@ -55,6 +56,7 @@ describe('the client relay with a real relay', () => {
         sockets.push(socket)
         return socket as unknown as RelaySocketLike
       },
+      events: (address) => sseSocket(address, fetch),
       retryDelay: () => 100,
       final: () => false,
     })
