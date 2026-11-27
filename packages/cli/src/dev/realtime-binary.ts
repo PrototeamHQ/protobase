@@ -71,8 +71,14 @@ export const realtimeBinary = async ({ env = process.env, release = realtimeRele
 
   await mkdir(versionDir, { recursive: true })
   const partial = `${file}.${randomBytes(6).toString('hex')}.partial`
-  await writeFile(partial, bytes)
-  await chmod(partial, 0o755)
-  await rename(partial, file)
+  try {
+    await writeFile(partial, bytes)
+    await chmod(partial, 0o755)
+    await rename(partial, file)
+  } finally {
+    // Gone after the rename; after a failure, removed so the cache keeps no partial file. A removal that fails too is
+    // left alone, so the error thrown is the one that stopped the install.
+    await rm(partial, { force: true }).catch(() => undefined)
+  }
   return file
 }
