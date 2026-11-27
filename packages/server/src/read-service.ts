@@ -49,7 +49,7 @@ export const readRecord = async (deps: Deps, entry: Entry, session: Session, key
     const record = pickFields(current.record, names)
     const [row] = await rowPermissions(trx, access, [record])
     const full = deleted === 'show' ? { ...access.full, softDelete: undefined } : access.full
-    const read = { resource: entry.name, model: full, scope: ownScope(access, full), filter: keyFilter(full, key), fields: sealed || names }
+    const read = { model: full, scope: ownScope(access, full), filter: keyFilter(full, key), fields: sealed || names }
     const token = subject && (await deps.liveTokens!.seal(trx, subject, read))
     return { record, etag: current.etag, permissions: { ...row!, fields: fieldModes(access, row!.update) }, token }
   })
