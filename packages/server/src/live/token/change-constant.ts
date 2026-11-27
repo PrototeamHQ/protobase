@@ -24,7 +24,8 @@ const integerOf = (text: string, ordered: boolean) => {
   return ordered ? undefined : canonical
 }
 
-// A related record's key, whose type the field does not say: a string Postgres could read as another spelling of an integer or a uuid key is left out.
+// A related record's key, whose type the field does not say, so sent as text for equality only, which matches an integer
+// key and a text key alike: a value Postgres could read as another spelling of an integer or a uuid key is left out.
 const keyText = (text: string, ordered: boolean) => {
   if (ordered) return
   if (/^\s*[+-]?\d/.test(text)) return /^-?\d+$/.test(text) && BigInt(text).toString() === text ? text : undefined
@@ -36,8 +37,8 @@ const numericText = (value: FilterValue) => (value.kind === 'number' ? value.raw
 
 /**
  * The value as the stream compares it with the field's column as Postgres does, for an ordering comparison when
- * `ordered`; undefined where it would compare differently: a date, a timestamp or `now()`, an order on text or booleans,
- * a number a JS number cannot hold exactly, a key of a composite relation.
+ * `ordered`; undefined where it would compare differently: a date, a timestamp or `now()`, an order on text, booleans or
+ * related keys, a number a JS number cannot hold exactly, a key of a composite relation.
  */
 export const changeConstant = (field: FieldModel, value: FilterValue, ordered: boolean): Constant | undefined => {
   if (field.type === 'boolean') return value.kind === 'boolean' && !ordered ? value.value : undefined
@@ -55,8 +56,8 @@ export const changeConstant = (field: FieldModel, value: FilterValue, ordered: b
   }
   if (field.type === 'relation') {
     if (field.relation && field.relation.columns.length > 1) return
-    if (value.kind === 'number') return integerOf(value.raw, ordered)
-    return value.kind === 'string' ? keyText(value.value, ordered) : undefined
+    const text = value.kind === 'number' ? value.raw : value.kind === 'string' ? value.value : undefined
+    return text === undefined ? undefined : keyText(text, ordered)
   }
   if (textTypes.has(field.type)) return value.kind === 'string' && !ordered ? value.value : undefined
   return

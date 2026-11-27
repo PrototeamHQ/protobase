@@ -57,7 +57,8 @@ describe('changeConstant', () => {
   })
 
   it('gives a related key only in the one form Postgres prints it in for any key type', () => {
-    expect(changeConstant(fields.customer_id!, number('4'), true)).toBe(4)
+    expect(changeConstant(fields.customer_id!, number('4'), false)).toBe('4')
+    expect(changeConstant(fields.customer_id!, number('4'), true)).toBeUndefined()
     expect(changeConstant(fields.customer_id!, text('acme'), false)).toBe('acme')
     expect(changeConstant(fields.customer_id!, text('42'), false)).toBe('42')
     expect(changeConstant(fields.customer_id!, text('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'), false)).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')

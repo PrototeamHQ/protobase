@@ -35,7 +35,7 @@ describe('liveTokens', () => {
     const scope = { parents: [{ field: messages.fields.channel_id!, parent: { model: channels, key: channels.fields.id!, scope: {} } }] }
     const token = await tokens.seal(answering({ s0: ['4', '9'], snapshot: '812:815:813' }, queries), subject, { model: messages, scope, fields: ['id', 'body'] })
     const { payload } = await jwtDecrypt(token!, await liveTokenKey(ticketKey))
-    expect(payload).toMatchObject({ subs: [{ resource: 'messages', where: { in: ['channel_id', [4, 9]] } }], fields: ['id', 'body'], snapshot: '812:815:813', sub: 'u1', sid: 's1', iss: 'chat' })
+    expect(payload).toMatchObject({ subs: [{ resource: 'messages', where: { in: ['channel_id', ['4', '9']] } }], fields: ['id', 'body'], snapshot: '812:815:813', sub: 'u1', sid: 's1', iss: 'chat' })
     expect(queries.map((query) => query.sql)).toEqual([expect.stringMatching(/^select array\(/), 'select pg_current_snapshot()::text as snapshot'])
   })
 
@@ -44,7 +44,7 @@ describe('liveTokens', () => {
     const scope = { rowFilter: checked(messages, 'channel_id = 3') }
     const token = await tokens.seal(answering({ snapshot: '1:1:' }, []), subject, { model: messages, scope, filter: checked(messages, 'id > 10'), fields: ['id'] })
     const { payload } = await jwtDecrypt(token!, await liveTokenKey(ticketKey))
-    expect(payload.subs).toEqual([{ resource: 'messages', where: { and: [{ eq: ['channel_id', 3] }, { gt: ['id', 10] }] } }])
+    expect(payload.subs).toEqual([{ resource: 'messages', where: { and: [{ eq: ['channel_id', '3'] }, { gt: ['id', 10] }] } }])
   })
 
   it('names a table outside the public schema with its schema', async () => {
