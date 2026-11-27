@@ -1,4 +1,5 @@
 import type { Db } from '@protobase/query'
+import type { PeopleEvent } from '@protobase/schema/internal'
 import type { AdminAuth } from '../better-auth/create-auth'
 import { dispatchJobName } from '../changes/capture-sql'
 import type { ResourceChange } from '../changes/resource-change'
@@ -11,6 +12,7 @@ import { channelMembers, coMembers } from './members-sql'
 import { mergedAudience, organizationAudience, organizationCoMembers } from './organization-audience'
 import { organizationMembersOf } from './organization-members'
 import { organizationMoves, type MemberPair } from './organization-moves'
+import { peopleCommands } from './people-commands'
 import type { PresenceModel } from './presence-model'
 import { presenceCommands, presencePeople } from './presence-commands'
 import { presenceRoutes } from './presence-route'
@@ -68,5 +70,8 @@ export const relayRuntime = (options: RealtimeRelaySettings, auth: AdminAuth | u
   // What `/meta` names for pages: the noticed resources, and where presence is read, never the reports' key.
   const meta = { resources: noticed, ...(models.presence && { presence: { resource: models.presence.model.name, user: models.presence.user, status: models.presence.status, at: models.presence.at } }) }
 
-  return { jobs: jobs.jobs, onChanges, meta, routes: () => ticketRoutes({ deps, options, models, organizations, jobs, sessionEnd: ends }), ...(options.presence && models.presence && { presenceRoutes: presenceApp(options.presence.key, models.presence) }) }
+  // Tells these people's pages on `people` that their access or rings changed, through the relay's ordered sends.
+  const tellPeople = (db: Db, userIds: readonly string[], event: PeopleEvent) => jobs.queue(db, peopleCommands(crypto.randomUUID(), userIds, event))
+
+  return { jobs: jobs.jobs, onChanges, meta, tellPeople, routes: () => ticketRoutes({ deps, options, models, organizations, jobs, sessionEnd: ends }), ...(options.presence && models.presence && { presenceRoutes: presenceApp(options.presence.key, models.presence) }) }
 }
