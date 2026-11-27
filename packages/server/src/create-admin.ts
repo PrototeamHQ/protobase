@@ -380,7 +380,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const relayApp = { views: viewModels, models: appModels, signIn: Boolean(auth) }
   const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {}, relayApp)
   // A list or record read of a live resource gives a live token on `Prefer: live` once the relay is set, which holds its key.
-  const tokens = relaySettings && auth && liveTokens({ app: relaySettings.app, ticketKey: relaySettings.ticketKey, sessionEnd: sessionEnd(auth) })
+  const tokens = relaySettings && auth && liveTokens({ app: relaySettings.app, ticketKey: relaySettings.ticketKey, sessionEnd: sessionEnd(auth), keyTypesOf: (name) => registry.find(name)?.keyTypes })
   const deps: Deps = {
     db,
     registry,

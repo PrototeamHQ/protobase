@@ -1,4 +1,4 @@
-import type { FieldModel, FilterValue } from '@protobase/schema'
+import type { FieldType, FilterValue } from '@protobase/schema'
 
 /** A value the change stream compares a column's text with: a number numerically, a string byte by byte, a boolean as `t` or `f`. */
 export type Constant = string | number | boolean
@@ -24,43 +24,27 @@ const integerOf = (text: string, ordered: boolean) => {
   return ordered ? undefined : canonical
 }
 
-// A related record's key, whose type the field does not say, so sent as text for equality only. The stream compares a
-// string with the column's text byte by byte, and Postgres prints an integer key in one canonical form, so `"4"` meets an
-// integer key of 4 as it meets a text key of "4"; a number would compare a text key numerically, which Postgres does not.
-// A value Postgres could read as another spelling of an integer or a uuid key is left out.
-const keyText = (text: string, ordered: boolean) => {
-  if (ordered) return
-  if (/^\s*[+-]?\d/.test(text)) return /^-?\d+$/.test(text) && BigInt(text).toString() === text ? text : undefined
-  if (/^[0-9a-f]{32}$/i.test(text.replace(/[{}-]/g, '')) && !uuidPattern.test(text)) return
-  return text
-}
-
 const numericText = (value: FilterValue) => (value.kind === 'number' ? value.raw : value.kind === 'string' ? value.value : undefined)
 
 /**
- * The value as the stream compares it with the field's column as Postgres does, for an ordering comparison when
- * `ordered`; undefined where it would compare differently: a date, a timestamp or `now()`, an order on text, booleans or
- * related keys, a number a JS number cannot hold exactly, a key of a composite relation.
+ * The value as the stream compares it with a column of `type` as Postgres does, for an ordering comparison when
+ * `ordered`; undefined where it would compare differently: a date, a timestamp or `now()`, an order on text or booleans,
+ * a number a JS number cannot hold exactly. A relation's column compares as the type of the key it points at.
  */
-export const changeConstant = (field: FieldModel, value: FilterValue, ordered: boolean): Constant | undefined => {
-  if (field.type === 'boolean') return value.kind === 'boolean' && !ordered ? value.value : undefined
-  if (field.type === 'integer' || field.type === 'bigint') {
+export const changeConstant = (type: FieldType, value: FilterValue, ordered: boolean): Constant | undefined => {
+  if (type === 'boolean') return value.kind === 'boolean' && !ordered ? value.value : undefined
+  if (type === 'integer' || type === 'bigint') {
     const text = numericText(value)
     return text === undefined ? undefined : integerOf(text, ordered)
   }
-  if (field.type === 'decimal') {
+  if (type === 'decimal') {
     const text = numericText(value)
     return text === undefined ? undefined : exactNumber(text)
   }
-  if (field.type === 'uuid') {
+  if (type === 'uuid') {
     const text = value.kind === 'string' ? value.value.toLowerCase() : undefined
     return text !== undefined && uuidPattern.test(text) ? text : undefined
   }
-  if (field.type === 'relation') {
-    if (field.relation && field.relation.columns.length > 1) return
-    const text = value.kind === 'number' ? value.raw : value.kind === 'string' ? value.value : undefined
-    return text === undefined ? undefined : keyText(text, ordered)
-  }
-  if (textTypes.has(field.type)) return value.kind === 'string' && !ordered ? value.value : undefined
+  if (textTypes.has(type)) return value.kind === 'string' && !ordered ? value.value : undefined
   return
 }

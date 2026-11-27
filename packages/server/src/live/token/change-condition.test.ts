@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkFilter, f, parseFilter, resource } from '@protobase/schema'
+import { checkFilter, f, parseFilter, resource, type KeyType } from '@protobase/schema'
 import { changeCondition } from './change-condition'
 
 const orders = resource('orders')
@@ -11,6 +11,9 @@ const orders = resource('orders')
     paid: f.boolean().filterable(),
     meta: f.json().filterable(),
     placed_at: f.timestamp().filterable(),
+    customer_id: f.relation('customers').filterable(),
+    owner_id: f.relation('owners').filterable(),
+    line_id: f.relation('lines').filterable(),
   })
   .primaryKey((r) => r.id)
   .search((r) => [r.title])
@@ -21,8 +24,11 @@ const condition = (source: string) => {
   if (!parsed.ok || !parsed.ast) throw new Error(`parse failed: ${source}`)
   const checked = checkFilter(orders, parsed.ast)
   if (!checked.ok || !checked.filter) throw new Error(`check failed: ${source}`)
-  return changeCondition(checked.filter)
+  return changeCondition(checked.filter, keyTypesOf)
 }
+
+const keyTypes: Record<string, KeyType[]> = { customers: ['integer'], owners: ['text'], lines: ['integer', 'integer'] }
+const keyTypesOf = (resource: string) => keyTypes[resource]
 
 describe('changeCondition', () => {
   it.each([
@@ -46,7 +52,14 @@ describe('changeCondition', () => {
     expect(condition('title = "a"')).toEqual({ eq: ['order_title', 'a'] })
   })
 
+  it('compares a relation as the key it points at', () => {
+    expect(condition('customer_id = 4')).toEqual({ eq: ['customer_id', 4] })
+    expect(condition('in(owner_id, "ann", "bo")')).toEqual({ in: ['owner_id', ['ann', 'bo']] })
+  })
+
   it.each([
+    ['a number for a text key', 'owner_id = 4'],
+    ['a key of several parts', 'line_id = 4'],
     ['a search', 'search("a")'],
     ['similar', 'similar(title, "a")'],
     ['regex', 'regex(title, "^a")'],

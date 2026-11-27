@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import { sameRowFilter, type Db, type Scope } from '@protobase/query'
 import type { CheckedFilter, ResourceModel } from '@protobase/schema'
 import type { Session } from '../../types'
-import { changeCondition } from './change-condition'
+import { changeCondition, type KeyTypesOf } from './change-condition'
 import { liveTokenKey } from './live-key'
 import { liveSubject } from './live-subject'
 import { sealLiveToken, type LiveSubject } from './live-token'
@@ -24,8 +24,11 @@ export type LiveTokens = {
   seal: (trx: Db, subject: LiveSubject, read: LiveTokenRead) => Promise<string | undefined>
 }
 
-/** Live tokens sealed with the key derived from the relay's ticket key, for the app the relay knows as `app`. */
-export const liveTokens = (options: { app: string; ticketKey: string; sessionEnd: (id: string) => Promise<Date | undefined> }): LiveTokens => {
+/**
+ * Live tokens sealed with the key derived from the relay's ticket key, for the app the relay knows as `app`. `keyTypesOf`
+ * gives the key types of a resource a relation points at, which its conditions compare by.
+ */
+export const liveTokens = (options: { app: string; ticketKey: string; sessionEnd: (id: string) => Promise<Date | undefined>; keyTypesOf: KeyTypesOf }): LiveTokens => {
   const key = liveTokenKey(options.ticketKey)
   return {
     subject: (session) => liveSubject(session, options.sessionEnd),
@@ -34,7 +37,7 @@ export const liveTokens = (options: { app: string; ticketKey: string; sessionEnd
       if (!resource) return
       const filter = await sameRowFilter(trx, read.model, read.scope, read.filter)
       if (filter === false) return
-      const where = filter && changeCondition(filter)
+      const where = filter && changeCondition(filter, options.keyTypesOf)
       if (filter && !where) return
       const { rows } = await sql<{ snapshot: string }>`select pg_current_snapshot()::text as snapshot`.execute(trx)
       const claims = { subs: [{ resource, ...(where && { where }) }], fields: read.fields, snapshot: rows[0]!.snapshot }
