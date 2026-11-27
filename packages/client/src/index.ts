@@ -6,6 +6,7 @@ export { ChannelRefusal, type ChannelError, type ChannelMessage, type ChannelSta
 export type { SocketLike } from './channel-connection'
 export { RelayRefusal, type RelayEvent, type RelayHandlers, type RelayNotice, type RelayStatus } from './relay/relay-types'
 export type { OwnPresence, RelayClient } from './relay/relay-client'
+export type { RelayLiveHandlers } from './relay/relay-live'
 export { pollThenSocket, type LiveSocket, type PollThenSocketOptions } from './poll-then-socket'
 export type { OpenedBridge } from './bridges'
 export type { ApnsDeviceRegistration, DevicesClient, FcmDeviceRegistration, RegisteredDevice, RelayDeviceRegistration, WebDeviceRegistration } from './devices'

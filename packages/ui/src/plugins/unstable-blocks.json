@@ -70,6 +70,7 @@
     "data/focus-refresh#usePauseFocusRefresh",
     "data/use-aggregates#useAggregate",
     "data/use-aggregates#useAggregates",
+    "data/use-follow-live#useFollowLive",
     "data/use-live-updates#useLiveUpdates",
     "data/use-record#useOpenedRecord",
     "data/use-source-metas#useSourceMetas",

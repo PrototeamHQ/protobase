@@ -42,6 +42,8 @@ export type RelayHandlers = {
    * its notices come from now on, so read again what is shown.
    */
   onJoined?: (channel: string) => void
+  /** Each frame on a live query's topic, `live:<id>`: its `change` entries, and its `phx_close` or `phx_error`. */
+  onLive?: (frame: { topic: string; event: string; payload: Record<string, unknown> }) => void
   /** Any other event the app publishes on a channel, such as one of its functions' own, with its channel. */
   onPublished?: (published: { channel: string; event: string; payload: Record<string, unknown> }) => void
 }

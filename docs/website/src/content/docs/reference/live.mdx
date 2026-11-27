@@ -21,7 +21,7 @@ It is live data, not multiplayer editing: two people editing the same record sti
 
 ## The stream
 
-`GET /api/live` answers a `text/event-stream` to anyone who may read a live resource, a visitor of the anonymous role too. Each event's data is JSON with a `cursor`:
+An app with the [relay](/reference/realtime-relay/) serves no stream: its pages hear the same [over the relay](#over-the-relay). `GET /api/live` answers a `text/event-stream` to anyone who may read a live resource, a visitor of the anonymous role too. Each event's data is JSON with a `cursor`:
 
 | `type` | |
 | --- | --- |
@@ -35,7 +35,7 @@ Connecting again with `?after=<cursor>` catches up on what was missed while disc
 ## Live tokens
 
 :::caution[In development]
-Reads give live tokens, but nothing takes them yet: subscribing with a token is coming soon.
+Live tokens and the pages that subscribe with them over the relay are in development.
 :::
 
 A list or record read of a live resource gives a live token on request: `GET /api/v1/<resource>`, `GET /api/v1/<resource>/<key>`, the list under a record and `:search` take RFC 7240 `Prefer: live`, or `?live=1` where a page cannot set headers. The answer then has `Preference-Applied: live` and the token in `Protobase-Live`. Without the request the server resolves and encrypts nothing. These reads answer `Vary: Prefer`, so a cache keeps the two answers apart, and the API's CORS allows `Prefer` and exposes `Protobase-Live` and `Preference-Applied`.
@@ -61,11 +61,18 @@ The server gives no token, and no `Preference-Applied`, when it cannot write the
 
 ### Refreshing access
 
-:::caution[In development]
-Pages read again on a refresh; the tokens they get are not taken by anything yet.
-:::
 
-`live.refresh({ user })`, on the context of an [API function](/guides/api-functions/), also one served for supabase-js, and of a function a webhook subscription calls, tells the open pages of the user with that id to read everything they show again, which gives them new tokens for their access as it is now. Call it once a change of their roles or memberships has committed. It writes a notice in its own transaction, so a page that reconnects with `?after=` still gets it. In an app without a live resource or calls it does nothing.
+`live.refresh({ user })`, on the context of an [API function](/guides/api-functions/), also one served for supabase-js, and of a function a webhook subscription calls, tells the open pages of the user with that id to read everything they show again, which gives them new tokens for their access as it is now. Call it once a change of their roles or memberships has committed. It writes a notice in its own transaction, so a page that reconnects with `?after=` still gets it; with the relay, it publishes `refresh` to the user on the relay's `people` channel, and the page also reads again each time its socket connects again. In an app without a live resource or calls it does nothing.
+
+### Over the relay
+
+In an app with the relay, each page follows its live resources on the relay's one socket, with the socket its other relay features use. [`client.relay.live({ resources, polled?, onChanges, onResync })`](/reference/client/) of `@protobase/client` does the same from code, sharing one socket however many callers follow it. For each resource it reads a token of every record the caller may read, `GET /api/v1/<resource>?limit=1` with `Prefer: live`, and joins the relay's live query `live:<resource>` with it. It then hears the changes as `onChanges` does above, and reads the resource again once, since what the page read came before the token.
+
+- Each change carries a cursor. When the token expires, or the socket connects again, it joins with a fresh token after the last cursor, so nothing in between is missed.
+- When the relay's changes service no longer has every change since the cursor, the live query starts again from a new read, and the resource is read again.
+- The relay's `people` channel carries `refresh`, which reads everything again with new tokens, and `rings`, for the calls that ring the person.
+
+A resource the relay cannot keep live is read again every 30 seconds instead, and whenever the window gets the focus again, as every query is. That happens when the read gives no token, when the relay has no changes service or lost it, and while the socket is down. Polling stops at the resource's next change. A resource live from others, given in `polled`, is always polled this way. <gap>A resource live from others (`.live({ reads })`) cannot update at once over the relay because live queries of the resources it reads are not implemented.</gap> <gap>Pages under `protobase dev` cannot take live updates over its relay, and poll instead, because no published Realtime release carries live queries yet.</gap>
 
 ## Resources backed by a view
 

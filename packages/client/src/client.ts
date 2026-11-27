@@ -9,6 +9,8 @@ import { followLive, type LiveHandlers } from './live'
 import { sharedLive } from './shared-live'
 import { channelsClient } from './channels'
 import { relayClient } from './relay/relay-client'
+import { relayLive } from './relay/relay-live'
+import { readLiveToken } from './relay/live-token-read'
 import { fetchTicket, ticketRefused } from './relay/relay-ticket'
 import { sseSocket } from './relay/sse-socket'
 import { bridgesClient } from './bridges'
@@ -406,7 +408,7 @@ export const createClient = (options: ClientOptions = {}) => {
 
   /**
    * Hears which records of the `.live()` resources the caller may read change, as they do, until the returned function
-   * is called (`GET /api/live`); it connects again by itself.
+   * is called (`GET /api/live`); it connects again by itself. An app with the relay serves no such stream: use `relay.live`.
    */
   const live = sharedLive((handlers: LiveHandlers) => followLive(send, handlers))
 
@@ -426,13 +428,18 @@ export const createClient = (options: ClientOptions = {}) => {
    * The app's realtime relay (`realtime.relay`): change notices of the channels the person is in, the events clients
    * send each other, what the page views and whether its person is at it, all on one socket (see `relayClient`).
    */
-  const relay = relayClient({
+  const relaySocket = relayClient({
     ticket: () => fetchTicket(send),
     socket: (url) => openSocket(url, []),
     events: (url) => sseSocket(url, options.fetch ?? ((input, init) => fetch(input, init))),
     retryDelay: (attempt) => Math.min(30_000, 1000 * 2 ** attempt),
     final: ticketRefused,
   })
+  /**
+   * In an app with the relay, `client.live` is `relay.live`: the changes of the `.live()` resources it names, over
+   * live queries on the relay's socket, which serves no `GET /api/live` (see `relayLive`).
+   */
+  const relay = { ...relaySocket, live: relayLive({ relay: relaySocket, token: (resource) => readLiveToken(send, resource) }) }
 
   /** The app's TCP bridges, to services only its server reaches, over a WebSocket each (see `bridgesClient`). */
   const bridges = bridgesClient({ send, socketUrl: (path) => systemSocketUrl(options.baseUrl, path), socket: openSocket })
