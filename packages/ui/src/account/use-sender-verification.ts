@@ -23,7 +23,7 @@ export const useSenderVerification = (calls: VerificationCalls, auto = false) =>
     running.current = true
     setError(undefined)
     try {
-      await runVerification({ ...latest.current, wait, stopped: () => left.current, onState: setState })
+      await runVerification({ ...latest.current, wait, now: Date.now, stopped: () => left.current, onState: setState })
     } catch (failure) {
       if (left.current) return
       setState({ status: 'idle' })
