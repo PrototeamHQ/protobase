@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { link, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { protobaseFolder } from '../project/protobase-folder'
 import { heldOn } from './loopback'
@@ -25,11 +26,40 @@ export const readSavedPort = async (projectDir: string) => {
   return port >= 1 && port <= 65535 ? port : undefined
 }
 
+// The port goes to a file of its own first, so a reader never sees a half-written port file.
+const writeTemporary = async (projectDir: string, port: number) => {
+  await mkdir(path.join(projectDir, protobaseFolder), { recursive: true })
+  const temporary = path.join(projectDir, `${devPortFile}.${randomUUID()}.tmp`)
+  await writeFile(temporary, `${port}\n`)
+  return temporary
+}
+
 // A running dev server rebuilds its API on any write inside the project, so an unchanged port is left alone.
 export const savePort = async (projectDir: string, port: number) => {
   if ((await readSavedPort(projectDir)) === port) return
-  await mkdir(path.join(projectDir, protobaseFolder), { recursive: true })
-  await writeFile(path.join(projectDir, devPortFile), `${port}\n`)
+  const temporary = await writeTemporary(projectDir, port)
+  await rename(temporary, path.join(projectDir, devPortFile))
+}
+
+/**
+ * Saves `port` only when no port file exists yet, and returns the project's port: `port`, or the one another run
+ * published first. Linking fails when the file exists, so of two first runs started together only one publishes.
+ */
+export const publishPort = async (projectDir: string, port: number) => {
+  const temporary = await writeTemporary(projectDir, port)
+  try {
+    await link(temporary, path.join(projectDir, devPortFile))
+    return port
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+  } finally {
+    await unlink(temporary)
+  }
+  const saved = await readSavedPort(projectDir)
+  if (saved !== undefined) return saved
+  // The file holds no port, such as a garbled one, so this run's port replaces it.
+  await savePort(projectDir, port)
+  return port
 }
 
 /** A random port in `randomPorts` that no process holds on either loopback address, trying a fixed number of them. */
@@ -55,7 +85,5 @@ export const devPort = async (projectDir: string, chosen: number | undefined, pi
   }
   const saved = await readSavedPort(projectDir)
   if (saved !== undefined) return saved
-  const picked = await pick()
-  await savePort(projectDir, picked)
-  return picked
+  return publishPort(projectDir, await pick())
 }
