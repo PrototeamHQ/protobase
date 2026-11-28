@@ -1,0 +1,37 @@
+name: older-code
+on:
+  workflow_dispatch:
+    inputs:
+      previous:
+        description: The tag, branch or commit that serves now
+        default: main
+jobs:
+  older-code:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U app -d app" --health-interval 2s --health-retries 30
+    env:
+      DATABASE_URL: postgres://app:app@localhost:5432/app
+      PREVIOUS: ${{ inputs.previous || github.base_ref || 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      # This branch's migrations, the app's and the auth schema's, on an empty database.
+      - run: bun install --frozen-lockfile
+      - run: bun run db:migrate
+      # The version that serves now, with its own packages, and its tests on that database.
+      - run: |
+          commit=$(git rev-parse --verify --quiet "origin/$PREVIOUS^{commit}" || git rev-parse --verify "$PREVIOUS^{commit}")
+          git worktree add --detach "$RUNNER_TEMP/previous" "$commit"
+      - working-directory: ${{ runner.temp }}/previous
+        run: bun install --frozen-lockfile && bun run test
