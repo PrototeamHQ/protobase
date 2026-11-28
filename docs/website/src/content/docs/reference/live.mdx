@@ -61,6 +61,9 @@ The server gives no token, and no `Preference-Applied`, when it cannot write the
 
 ### Refreshing access
 
+:::caution[In development]
+Pages read again on a refresh. Only pages of an app with the relay join with the new tokens; under `protobase dev`, and in an app without the relay, nothing takes them yet.
+:::
 
 `live.refresh({ user })`, on the context of an [API function](/guides/api-functions/), also one served for supabase-js, and of a function a webhook subscription calls, tells the open pages of the user with that id to read everything they show again, which gives them new tokens for their access as it is now. Call it once a change of their roles or memberships has committed. It writes a notice in its own transaction, so a page that reconnects with `?after=` still gets it; with the relay, it publishes `refresh` to the user on the relay's `people` channel, and the page also reads again each time its socket connects again. In an app without a live resource or calls it does nothing.
 
@@ -72,7 +75,7 @@ In an app with the relay, each page follows its live resources on the relay's on
 - When the relay's changes service no longer has every change since the cursor, the live query starts again from a new read, and the resource is read again.
 - The relay's `people` channel carries `refresh`, which reads everything again with new tokens, and `rings`, for the calls that ring the person.
 
-A resource the relay cannot keep live is read again every 30 seconds instead, and whenever the window gets the focus again, as every query is. That happens when the read gives no token, when the relay has no changes service or lost it, and while the socket is down. Polling stops at the resource's next change. A resource live from others, given in `polled`, is always polled this way. <gap>A resource live from others (`.live({ reads })`) cannot update at once over the relay because live queries of the resources it reads are not implemented.</gap> <gap>Pages under `protobase dev` cannot take live updates over its relay, and poll instead, because running a change stream for that relay is not implemented.</gap>
+A resource the relay cannot keep live is read again every 30 seconds instead, and whenever the window gets the focus again, as every query is. That happens when the read gives no token, when the relay has no changes service or lost it, and while the socket is down. Polling stops at the resource's next change. A token read that got no answer is tried again at each poll, until the join succeeds. A resource live from others, given in `polled`, is always polled this way. <gap>A resource live from others (`.live({ reads })`) cannot update at once over the relay because live queries of the resources it reads are not implemented.</gap> <gap>Pages under `protobase dev` cannot take live updates over its relay, and poll instead, because running a change stream for that relay is not implemented.</gap>
 
 ## Resources backed by a view
 
