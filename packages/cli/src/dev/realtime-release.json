@@ -1,10 +1,10 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "sha256": {
-    "protobase-realtime-linux-amd64": "9222d79cf9b1ad222a7580b4cb40fcd9b47ba8bdd4c6dc6b301eee5c57c73a1f",
-    "protobase-realtime-linux-arm64": "417801feaffd70849122fa2de59726f02afb78ce75af71bb21856b8dedca9c83",
-    "protobase-realtime-darwin-amd64": "811aed0f1f17623a4b900c5cdc2948e4f23343161f770e13836a2800f48ee793",
-    "protobase-realtime-darwin-arm64": "70bacaef85cd6b554556a29e7ca0710ced96036083c7b00da9b064ae94198ae0",
-    "protobase-realtime-windows-amd64.exe": "93ecd3fc44ca00b19cd5abf86a0d48da2f76436acf844e86c82f76f05b112cfc"
+    "protobase-realtime-linux-amd64": "df30c0e6600744f36d5a6f5ffc56a68318a2fe7eb53dc8bcb86a47fc83430fc2",
+    "protobase-realtime-linux-arm64": "6d7b27f49ede3086a0f1077b0ce21c14e5c9fe7182427ef607fe592b092baab0",
+    "protobase-realtime-darwin-amd64": "43f892cd10ec2873c98448cc4bdfca28cf24d7d84cd9a023750094eb2d12e60b",
+    "protobase-realtime-darwin-arm64": "8ccca3f8724247da157bc1f951502611d6a290d29f02902d86c2c54771df97ef",
+    "protobase-realtime-windows-amd64.exe": "c1dd4ffba08b8fd3db27a35e652c0a5650f07e48a218cbeae1472f6db7e7e137"
   }
 }
