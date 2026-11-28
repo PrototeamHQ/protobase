@@ -6,6 +6,6 @@ import type { Transport } from '../transport'
  * a resource with a record-level read rule.
  */
 export const readLiveToken = async (send: Transport, resource: string) => {
-  const response = await send({ method: 'GET', path: `/${encodeURIComponent(resource)}`, query: 'limit=1', headers: { prefer: 'live' }, cache: 'no-store' })
+  const response = await send({ method: 'GET', path: `/${encodeURIComponent(resource)}`, query: '?limit=1', headers: { prefer: 'live' }, cache: 'no-store' })
   return response.headers.get('protobase-live') ?? undefined
 }
