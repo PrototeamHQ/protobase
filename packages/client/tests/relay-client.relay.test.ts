@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHmac, randomUUID } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer as createHttpServer, type Server } from 'node:http'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,12 +14,13 @@ import { realtimeBinary } from '../../../test-support/realtime-binary'
 
 // The client's relay against a real relay process: one socket per client joining the channels its ticket lists, a
 // declared typing event from one person to another, the app's notices, a new ticket and one resync after a drop, and a
-// channel the person was added to, joined as the app tells them on `people`.
+// channel the person was added to, joined as the app tells them on `people`, and a person whose network refuses
+// WebSockets, carried over server-sent events with their presence until the app closes their session.
 // The relay is the Protobase Realtime release protobase dev runs (test-support/realtime-binary.ts). The tickets are
 // signed here, as the app's ticket endpoint signs them.
 vi.setConfig({ testTimeout: 20_000, hookTimeout: 30_000 })
 
-const keys = { api: 'client-test-api-key-0123456789abcdef', ticket: 'client-test-ticket-key-0123456789abc' }
+const keys = { api: 'client-test-api-key-0123456789abcdef', ticket: 'client-test-ticket-key-0123456789abc', presence: 'client-test-presence-key-0123456789ab' }
 const typing = { schema: { type: 'object', properties: { typing: { type: 'boolean' } }, required: ['typing'] }, max_bytes: 64, per_second: 5, burst: 10 }
 
 const freePort = () =>
@@ -43,16 +45,21 @@ describe('the client relay with a real relay', () => {
   let relay: ChildProcess
   let dir: string
   let url: string
+  let presence: Server
+  let refusedPort: number
+  const reports: Array<{ user: string; status: string }> = []
   const stops: Array<() => void> = []
 
   // A person's client, with every socket it opened, so a test can drop one.
-  const person = (user: string, channels: string[]) => {
+  // With `blocked`, their WebSockets go to a port nothing listens on, as on a network that refuses them.
+  const person = (user: string, channels: string[], { blocked = false } = {}) => {
     const sockets: WebSocket[] = []
-    const ticket = vi.fn(async () => ({ ticket: signTicket(user, channels), url: `${url.replace(/^http/, 'ws')}/socket`, channels }))
+    const relayUrl = `${url.replace(/^http/, 'ws')}/socket`
+    const ticket = vi.fn(async () => ({ ticket: signTicket(user, channels), url: relayUrl, channels }))
     const client = relayClient({
       ticket,
       socket: (address) => {
-        const socket = new WebSocket(address)
+        const socket = new WebSocket(blocked ? address.replace(relayUrl, `ws://127.0.0.1:${refusedPort}/socket`) : address)
         sockets.push(socket)
         return socket as unknown as RelaySocketLike
       },
@@ -60,9 +67,10 @@ describe('the client relay with a real relay', () => {
       retryDelay: () => 100,
       final: () => false,
     })
-    const heard = { notices: [] as RelayNotice[], events: [] as RelayEvent[], resyncs: 0, joined: [] as string[] }
+    const heard = { notices: [] as RelayNotice[], events: [] as RelayEvent[], resyncs: 0, joined: [] as string[], statuses: [] as string[] }
     stops.push(
       client.follow({
+        onStatus: (status) => void heard.statuses.push(status),
         onNotice: (notice) => heard.notices.push(notice),
         onEvent: (event) => heard.events.push(event),
         onResync: () => void (heard.resyncs += 1),
@@ -78,9 +86,21 @@ describe('the client relay with a real relay', () => {
 
   beforeAll(async () => {
     const port = await freePort()
+    refusedPort = await freePort()
     url = `http://127.0.0.1:${port}`
+    // The app's presence endpoint, taking the relay's reports.
+    presence = createHttpServer((request, response) => {
+      let body = ''
+      request.on('data', (chunk) => (body += chunk))
+      request.on('end', () => {
+        reports.push(...(JSON.parse(body) as { changes: Array<{ user: string; status: string }> }).changes)
+        response.writeHead(204).end()
+      })
+    })
+    await new Promise<void>((resolve) => presence.listen(0, '127.0.0.1', resolve))
+    const presencePort = (presence.address() as { port: number }).port
     dir = await mkdtemp(path.join(tmpdir(), 'relay-client-test-'))
-    const app = { id: 'chat', api_keys: [keys.api], ticket_keys: [keys.ticket], origins: [], client_events: { channels: { conversations: { events: { typing } } } }, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }
+    const app = { id: 'chat', api_keys: [keys.api], ticket_keys: [keys.ticket], origins: [], client_events: { channels: { conversations: { events: { typing } } } }, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 }, presence: { url: `http://127.0.0.1:${presencePort}/api/relay/presence`, key: keys.presence, grace_seconds: 0 } }
     await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [app] }))
     relay = spawn(await realtimeBinary(), [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await publish({}).catch(() => undefined))?.status).toBe(400), { timeout: 10_000, interval: 100 })
@@ -89,6 +109,7 @@ describe('the client relay with a real relay', () => {
   afterAll(async () => {
     for (const stop of stops.splice(0)) stop()
     relay?.kill()
+    presence?.close()
     if (dir) await rm(dir, { recursive: true, force: true })
   })
 
@@ -133,5 +154,27 @@ describe('the client relay with a real relay', () => {
     const notice = { kind: 'create', resource: 'messages', key: '9', channel: 'conversations/3' }
     await publish({ id: randomUUID(), channel: 'conversations/3', event: 'change', payload: notice })
     await vi.waitFor(() => expect(dave.heard.notices).toEqual([notice]))
+  })
+
+  it('goes over server-sent events where WebSockets are refused, joins, hears, sends presence and ends with its session', async () => {
+    const erin = person('erin', ['conversations/4'], { blocked: true })
+    await vi.waitFor(() => expect(erin.client.joined('conversations/4') && erin.client.joined('relay')).toBe(true))
+    expect(erin.sockets).toHaveLength(1)
+
+    const notice = { kind: 'create', resource: 'messages', key: '11', channel: 'conversations/4' }
+    expect((await publish({ id: randomUUID(), channel: 'conversations/4', event: 'change', payload: notice })).status).toBe(200)
+    await vi.waitFor(() => expect(erin.heard.notices).toEqual([notice]))
+
+    // The relay reports a status once it held for 2 seconds.
+    erin.client.presence('away')
+    await vi.waitFor(() => expect(reports).toContainEqual(expect.objectContaining({ user: 'erin', status: 'away' })), { timeout: 10_000, interval: 100 })
+
+    const tickets = erin.ticket.mock.calls.length
+    expect((await command('sessions/close', { session: 'session-erin' })).status).toBe(200)
+    await vi.waitFor(() => expect(erin.client.status()).toBe('ended'))
+    // Given the time a reconnect after the 100 ms pause would take, none asked for another ticket.
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(erin.ticket).toHaveBeenCalledTimes(tickets)
+    expect(erin.heard.statuses.at(-1)).toBe('ended')
   })
 })
