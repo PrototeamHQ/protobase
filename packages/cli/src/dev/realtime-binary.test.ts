@@ -1,12 +1,17 @@
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { realtimeBinary } from './realtime-binary'
+
+vi.mock('node:fs/promises', async (actual) => {
+  const fs = await actual<typeof import('node:fs/promises')>()
+  return { ...fs, chmod: vi.fn(fs.chmod), rm: vi.fn(fs.rm) }
+})
 
 const asset = 'protobase-realtime-linux-amd64'
 const binary = Buffer.from('#!/bin/sh\necho realtime\n')
@@ -48,6 +53,16 @@ describe('realtimeBinary', () => {
     expect((await stat(file)).mode & 0o111).toBe(0o111)
     expect(await resolve()).toBe(file)
     expect(requests).toEqual([`/v0.1.0/${asset}`])
+    expect(await readdir(path.dirname(file))).toEqual([asset])
+  })
+
+  it('leaves no partial file when the install fails, and throws its error even when the removal fails too', async () => {
+    vi.mocked(chmod).mockRejectedValueOnce(new Error('chmod failed'))
+    await expect(resolve()).rejects.toThrow('chmod failed')
+    expect(await readdir(path.join(cacheDir, '0.1.0'))).toEqual([])
+    vi.mocked(chmod).mockRejectedValueOnce(new Error('chmod failed'))
+    vi.mocked(rm).mockRejectedValueOnce(new Error('rm failed'))
+    await expect(resolve()).rejects.toThrow('chmod failed')
   })
 
   it('fails on an asset whose sha256 is not the pinned one, and caches nothing', async () => {
