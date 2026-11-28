@@ -9,10 +9,10 @@ import type { CallsService } from './calls-service-type'
 import type { CallsOptions } from './calls-options'
 import type { CallsRuntime } from './calls-runtime'
 
-/** What calls reach of the rest of the app: the live stream's notices, record channels, statuses and notifications. */
+/** What calls reach of the rest of the app: their users' open pages, record channels, statuses and notifications. */
 export type CallsWiring = {
-  /** The changes schema, whose notices table tells open pages of their user's rings. */
-  notices: string
+  /** Tells these users' open pages that the calls ringing them changed. */
+  tellRings: (db: Db, userIds: readonly string[]) => Promise<void>
   /** Where a record's readers hear its calls changed: its channel. */
   channels: () => ChannelSender
   /** With `status`: who of these users is on do not disturb. */
@@ -34,7 +34,7 @@ export const callsService = (deps: () => Deps, options: CallsOptions, wiring: Ca
     const recordUrl = ({ resource, key }: { resource: string; key: string }) =>
       wiring.origin === undefined ? undefined : new URL(appPath({ kind: 'record', resource, key: decodeKey(key, registry.find(resource)!.keyTypes) }), wiring.origin).href
     const rings = ringer({
-      store: sqlRingStore(db, wiring.notices),
+      store: sqlRingStore(db, wiring.tellRings),
       recordUrl,
       ...(wiring.doNotDisturb && { doNotDisturb: (userIds: readonly string[]) => wiring.doNotDisturb!(db, userIds) }),
       ...(wiring.notifications && {

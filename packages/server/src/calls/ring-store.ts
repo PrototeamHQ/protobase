@@ -1,6 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { CallRing } from '@protobase/schema/internal'
-import { ringsOf, startRings, stopEndedRings, stopRing, writeRingNotices, type RingText } from './rings-sql'
+import { ringsOf, startRings, stopEndedRings, stopRing, type RingText } from './rings-sql'
 
 /** Where the rings of calls are kept and their users' pages told of them: the `calls` schema, or memory in tests. */
 export type RingStore = {
@@ -12,11 +12,11 @@ export type RingStore = {
   notice: (userIds: readonly string[]) => Promise<void>
 }
 
-/** The `calls` schema's rings, and the notices table of the changes schema `notices`. */
-export const sqlRingStore = (db: Db, notices: string): RingStore => ({
+/** The `calls` schema's rings, whose users' pages `tell` tells of them. */
+export const sqlRingStore = (db: Db, tell: (db: Db, userIds: readonly string[]) => Promise<void>): RingStore => ({
   start: (call, userIds, text, seconds) => startRings(db, call, userIds, text, seconds),
   stop: (call, userId) => stopRing(db, call, userId),
   stopEnded: () => stopEndedRings(db),
   of: (userId) => ringsOf(db, userId),
-  notice: (userIds) => writeRingNotices(db, notices, userIds),
+  notice: (userIds) => tell(db, userIds),
 })

@@ -105,7 +105,7 @@ import { relayRuntime } from './relay/relay-runtime'
 import { sessionEnd } from './relay/session-end'
 import { liveTokens } from './live/token/live-tokens'
 import { liveRefresh } from './live/refresh/live-refresh'
-import { writeRefreshNotices } from './live/refresh/refresh-notices'
+import { pageNotices } from './live/page-notices'
 import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
 import { typingViewErrors } from './relay/typing-views'
@@ -422,7 +422,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     ...(auth && auth.personalMail.length > 0 && { mailSenders: (userId: string) => auth.personalMailer(userId).senders() }),
     ...(calls && {
       calls: callsService(() => deps, calls, {
-        notices: changes,
+        tellRings: (ringDb: Db, userIds: readonly string[]) => personPages.rings(ringDb, userIds),
         channels: () => channels,
         notifications: Boolean(notifications),
         organizations: Boolean(auth?.organizations),
@@ -434,6 +434,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
 
   const relay = relaySettings && relayRuntime(relaySettings, auth, deps)
+  // A person's pages hear that their access or rings changed on the relay's `people` channel, or from the live stream without the relay.
+  const personPages = pageNotices(changes, relay ? relay.tellPeople : undefined)
   // Sign-outs queue the close of their sockets once the app's database has the relay's trigger, the relay on or not.
   const relayJobList = relay ? relay.jobs : appRelayChannels(realtime?.relay, relayApp) ? idleRelayJobs() : []
   const typingErrors = typingViewErrors(viewModels, relaySettings && new Set(Object.keys(relaySettings.channels)))
@@ -530,8 +532,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const hubs = realtimeHubs(deps, realtime, report)
   const channels = channelSender(registry, hubs.records.broadcasts)
   // The notices table is there with a live resource or calls: the live stream reads it, and functions refresh pages through it.
+  // With the relay, pages take live updates over it and follow no live stream.
   const noticed = appModels.some((model) => model.live) || deps.calls !== undefined
-  const refresh = liveRefresh(noticed ? (userIds) => writeRefreshNotices(db, changes, userIds) : undefined)
+  const refresh = liveRefresh(noticed ? (userIds) => personPages.refresh(db, userIds) : undefined)
   app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, scope, records: (session) => callerRecords(deps, session), channels, live: refresh, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
   // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
   if (upgradeWebSocket) {
@@ -600,8 +603,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   if (engine?.routes.runnerInstall) app.route(`${systemPath}/runners/install.sh`, engine.routes.runnerInstall())
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
-  // With calls, the stream also tells each user's pages of the calls that ring them.
-  if (noticed) {
+  // With calls, the stream also tells each user's pages of the calls that ring them. An app with the relay serves no stream: its pages hear all of it over the relay.
+  if (noticed && !relay) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
   if (engine) app.route(`${systemPath}/workflows`, guarded((routes) => void routes.route('/', engine.routes.issue())))

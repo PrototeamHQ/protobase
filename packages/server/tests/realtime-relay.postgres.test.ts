@@ -1,10 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import type { Server } from 'node:http'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createAdaptorServer } from '@hono/node-server'
+import { EncryptJWT, jwtDecrypt } from 'jose'
 import { sql } from 'kysely'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
@@ -15,6 +17,7 @@ import { captureSchemaSql } from '../src/changes/capture-schema-sql'
 import { withAnonymous } from '../src/anonymous'
 import { createAdmin } from '../src/create-admin'
 import { jobsSchemaSql } from '../src/jobs/jobs-module'
+import { liveTokenKey } from '../src/live/token/live-key'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { relayClientEvents } from '../src/relay/client-events'
 import { relaySchemaSql } from '../src/schema-modules/feature-schemas-sql'
@@ -100,6 +103,14 @@ const relaySocket = async (url: string, ticket: string) => {
     await vi.waitFor(() => expect(frames.some((frame) => frame[1] === id)).toBe(true))
     return (frames.find((frame) => frame[1] === id)![4] as { status: string }).status
   }
+  // Joins with a payload, such as a live query's token: `ok`, or the reason the relay refused it.
+  const joinWith = async (channel: string, payload: Record<string, unknown>) => {
+    const id = String(++ref)
+    socket.send(JSON.stringify([id, id, channel, 'phx_join', payload]))
+    await vi.waitFor(() => expect(frames.some((frame) => frame[1] === id)).toBe(true))
+    const reply = frames.find((frame) => frame[1] === id)![4] as { status: string; response?: { reason?: string } }
+    return reply.status === 'ok' ? 'ok' : reply.response?.reason
+  }
   // Sends a client event on the channel: the relay's reply to it, `ok` or the reason it was refused.
   const send = async (channel: string, event: string, payload: unknown) => {
     const id = String(++ref)
@@ -111,7 +122,7 @@ const relaySocket = async (url: string, ticket: string) => {
   const events = () => frames.filter((frame) => frame[3] === 'client_event').map((frame) => frame[4])
   const notices = () => frames.filter((frame) => frame[3] === 'change').map((frame) => frame[4])
   const presences = (user: string) => frames.filter((frame) => frame[2] === 'people' && frame[3] === 'presence_changed' && frame[4].user === user).map((frame) => frame[4].status)
-  return { socket, frames, join, send, events, notices, presences, closed: () => closed }
+  return { socket, frames, join, joinWith, send, events, notices, presences, closed: () => closed }
 }
 
 describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with a real relay', () => {
@@ -173,7 +184,11 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with
     dir = await mkdtemp(path.join(tmpdir(), 'relay-test-'))
     // No grace, so a closed socket is reported offline once that held for the relay's two seconds.
     const presence = { url: `${appUrl}/api/relay/presence`, key: presenceKey, grace_seconds: 0 }
-    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], client_events: relayClientEvents(channels, new Set(['conversations'])), presence, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
+    // A changes service at an address nothing serves: the relay answers a live join whose token it took with `ok`, and
+    // keeps trying to connect to the service, which no test here needs.
+    await writeFile(path.join(dir, 'changes.key'), randomBytes(32).toString('base64url'))
+    const changes = [{ id: 'changes', url: `ws://127.0.0.1:${await freePort()}/relay`, key_file: path.join(dir, 'changes.key') }]
+    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ changes, apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], client_events: relayClientEvents(channels, new Set(['conversations'])), presence, changes: 'changes', limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
     relay = spawn(await realtimeBinary(), [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await fetch(`${relayUrl}/apps/chat/sessions/close`, { method: 'POST' }).catch(() => undefined))?.status).toBe(401), { timeout: 10_000, interval: 100 })
 
@@ -397,5 +412,26 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with
     expect((await request('/api/relay/ticket', { body: { channels: ['people'] } })).status).toBe(404)
     const visitor = await connect(undefined)
     expect(await visitor.join('people')).not.toBe('ok')
+  })
+
+  it("joins a live query with the token of a real read, and refuses one sealed with another key or expired", async () => {
+    // Bob, as the user role reads rooms.
+    const { token } = await signIn('bob@example.com')
+    const bob = await connect(token)
+    const read = await app.request(`${origin}/api/v1/rooms?limit=1`, { headers: { authorization: `Bearer ${token}`, prefer: 'live', origin } })
+    expect(read.status).toBe(200)
+    expect(read.headers.get('preference-applied')).toBe('live')
+    const live = read.headers.get('protobase-live')!
+    expect(await bob.joinWith('live:rooms', { live })).toBe('ok')
+
+    // The same claims, sealed as the app seals them but with another ticket key's, or after their expiry.
+    const { payload } = await jwtDecrypt(live, await liveTokenKey(keys.ticketKey))
+    const seal = async (ticketKey: string, exp: number) =>
+      new EncryptJWT({ ...payload }).setProtectedHeader({ alg: 'dir', enc: 'A256GCM', typ: 'JWT' }).setExpirationTime(exp).encrypt(await liveTokenKey(ticketKey))
+    const ahead = Math.floor(Date.now() / 1000) + 60
+    expect(await bob.joinWith('live:other-key', { live: await seal('another-ticket-key-0123456789abcdef', ahead) })).toBe('invalid_live_token')
+    expect(await bob.joinWith('live:expired', { live: await seal(keys.ticketKey, Math.floor(Date.now() / 1000) - 60) })).toBe('invalid_live_token')
+    // Sealed again as it was, it is taken: the refusals came of the key and the expiry alone.
+    expect(await bob.joinWith('live:resealed', { live: await seal(keys.ticketKey, ahead) })).toBe('ok')
   })
 })

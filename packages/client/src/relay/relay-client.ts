@@ -8,6 +8,9 @@ export const relayTopic = 'relay'
 /** The channel every signed-in person's ticket lists, on which the app tells them of a channel they were added to. */
 export const peopleTopic = 'people'
 
+/** What every live query's topic starts with, `live:<id>`, which the relay keeps for them. */
+export const liveTopicPrefix = 'live:'
+
 /** Whether someone is at the page: `away` while it is hidden or the device sleeps, `online` once it is back. */
 export type OwnPresence = 'online' | 'away'
 
@@ -68,6 +71,7 @@ export const relayClient = (options: Options) => {
   }
 
   const hear = (frame: Frame) => {
+    if (frame.topic.startsWith(liveTopicPrefix)) return each((handlers) => handlers.onLive?.(frame))
     if (frame.event === 'phx_close' || frame.event === 'phx_error') return void joined.delete(frame.topic)
     if (frame.event === 'change') {
       if (isNotice(frame.payload)) each((handlers) => handlers.onNotice?.(frame.payload as RelayNotice))
@@ -160,6 +164,13 @@ export const relayClient = (options: Options) => {
       else viewing.delete(channel)
       if (joined.has(channel)) void socket.request(channel, 'interest', keys ? { viewing: keys } : {}).catch(quietly)
     },
+    /**
+     * Joins a live query's topic, `live:<id>`, with `{ live: <token>, cursor? }`, or replaces its query when joined;
+     * rejects with the relay's `RelayRefusal`. Its frames go to `onLive`; it is not joined again after a reconnect.
+     */
+    joinLive: (topic: string, payload: { live: string; cursor?: string }) => socket.request(topic, 'phx_join', payload, String(++joins)),
+    /** Leaves a live query's topic, which unregisters its query. */
+    leaveLive: (topic: string) => void socket.request(topic, 'phx_leave', {}).catch(quietly),
     /** Connects again at once when the socket is down and waiting to try again, such as when the page shows again or the device is back online. */
     reconnect: () => socket.wake(),
     /** Tells the relay whether the person is at the page, as the app's presence takes it over all their devices. */
