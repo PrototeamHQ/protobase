@@ -49,11 +49,13 @@ It refuses as well on a database ahead of it by a migration that is not additive
 
 ### Test the version that serves on the new schema
 
-:::caution[Coming soon]
-<gap>An app cannot take up this workflow as a file because shipping it in an example or a Protobase file, tested, is not implemented.</gap> <gap>The workflow cannot find the version that serves by itself because recording the app's deployed release is not implemented.</gap>
+:::caution[Beta]
+<gap>The workflow cannot find the version that serves by itself because recording the app's deployed release is not implemented.</gap>
 :::
 
-While a deploy migrates, the version that serves now keeps running on the new schema until the new one takes over. This workflow, as `.github/workflows/older-code.yml`, applies a branch's migrations to an empty Postgres 18 and runs the tests of the version that serves now, checked out with its own packages, against that database through `DATABASE_URL`. A failing test names what the version before needs and the branch's migrations take, such as a column they drop. It checks what the app's tests read from the database, so it proves as much as those tests open. Run it from the Actions tab, giving the tag, branch or commit that serves; add `pull_request:` under `on:` to run it on every pull request, against the branch it merges into. A migration marked `-- protobase:breaks-older-code` is expected to fail it, since the version before refuses to start on it, but it does so only through a test that starts that version's server or reads what the migration changed: tests that do neither still pass.
+While a deploy migrates, the version that serves now keeps running on the new schema until the new one takes over. This workflow applies a branch's migrations to an empty Postgres 18 and runs the tests of the version that serves now, checked out with its own packages, against that database through `DATABASE_URL`. A failing test names what the version before needs and the branch's migrations take, such as a column they drop. It checks what the app's tests read from the database, so it proves as much as those tests open. Run it from the Actions tab, giving the tag, branch or commit that serves; add `pull_request:` under `on:` to run it on every pull request, against the branch it merges into. A migration marked `-- protobase:breaks-older-code` is expected to fail it, since the version before refuses to start on it, but it does so only through a test that starts that version's server or reads what the migration changed: tests that do neither still pass.
+
+Save it as `.github/workflows/older-code.yml` on your default branch, since the Actions tab runs only workflows found there. An app started from a preset already has it.
 
 ```yaml
 name: older-code
