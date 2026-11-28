@@ -23,12 +23,15 @@ export type RelayLiveHandlers = LiveHandlers & {
   polled?: readonly string[]
 }
 
-// A resource's live query: how many followers hear it, where it resumes, and the poll while the relay cannot keep it.
-type Topic = { resource: string; joins: boolean; followers: number; cursor?: string; poll?: ReturnType<typeof setInterval>; attempt: number }
+// A resource's live query: how many followers hear it, where it resumes, the poll while the relay cannot keep it, and
+// whether each poll tries the join again, after a token read that got no answer.
+type Topic = { resource: string; joins: boolean; followers: number; cursor?: string; poll?: ReturnType<typeof setInterval>; retry: boolean; attempt: number }
 
-// What a failed token read leaves to the poll: no answer, or an answer that is no token.
+// What a failed token read leaves to the poll: `retry` for no answer, which a later read may get; undefined for an
+// answer that is no token, which the next refresh reads again.
 const unreadable = (error: unknown) => {
-  if (error instanceof NetworkError || isApiError(error)) return
+  if (error instanceof NetworkError) return 'retry' as const
+  if (isApiError(error)) return
   throw error
 }
 
@@ -37,7 +40,8 @@ const unreadable = (error: unknown) => {
  * joined with the live token of a read of every record of it the caller may read, and resumed after the cursor of the
  * last change heard of, when the token expires or the socket joins again. A resource the relay cannot keep live, as
  * when the read gives no token, the app's relay has no changes service or lost it, or the socket is down, is read again
- * every `pollMs` until it can; the page's return to the window reads it again too, as every query does.
+ * every `pollMs` until it can; the page's return to the window reads it again too, as every query does. A token read
+ * that got no answer is tried again at each poll, until the join succeeds.
  *
  * Followers hear `onResync` once the socket connected again after a drop, or the app said their access changed on
  * `people`: their tokens are read again then. The `rings` the app says changed come as a change of `ringNotice`.
@@ -60,7 +64,10 @@ export const relayLive = ({ relay, token, pollMs: every = pollMs }: RelayLiveOpt
   }
 
   const poll = (topic: Topic) => {
-    topic.poll ??= setInterval(() => stale(topic.resource), every)
+    topic.poll ??= setInterval(() => {
+      stale(topic.resource)
+      if (topic.retry) void join(topic)
+    }, every)
   }
   const unpoll = (topic: Topic) => {
     clearInterval(topic.poll)
@@ -74,7 +81,8 @@ export const relayLive = ({ relay, token, pollMs: every = pollMs }: RelayLiveOpt
     const current = () => topics.get(topic.resource) === topic && topic.attempt === attempt
     const live = await token(topic.resource).catch(unreadable)
     if (!current()) return
-    if (!live) return poll(topic)
+    topic.retry = live === 'retry'
+    if (!live || live === 'retry') return poll(topic)
     const fresh = topic.cursor === undefined
     const refusal = await relay.joinLive(`${liveTopicPrefix}${topic.resource}`, { live, ...(topic.cursor !== undefined && { cursor: topic.cursor }) }).then(
       () => undefined,
@@ -134,7 +142,7 @@ export const relayLive = ({ relay, token, pollMs: every = pollMs }: RelayLiveOpt
   const add = (resource: string, joins: boolean) => {
     const known = topics.get(resource)
     if (known) return void known.followers++
-    const topic: Topic = { resource, joins, followers: 1, attempt: 0 }
+    const topic: Topic = { resource, joins, followers: 1, retry: false, attempt: 0 }
     topics.set(resource, topic)
     if (!joins) return poll(topic)
     if (relay.status() === 'open') void join(topic)

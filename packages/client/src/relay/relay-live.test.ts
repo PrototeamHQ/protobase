@@ -101,6 +101,29 @@ describe('relayLive', () => {
     expect(heard.changes).toEqual([stale('notes'), stale('offline')])
   })
 
+  it('tries the join again at each poll after a token read that got no answer, and stops polling once it joined', async () => {
+    const { follow, open, answer, joins, heard } = setup((resource, read) => {
+      if (read === 1) throw new NetworkError()
+      return `${resource}-token-${read}`
+    })
+    follow(['messages'])
+    await open()
+    expect(joins('live:messages')).toEqual([])
+    await vi.advanceTimersByTimeAsync(pollMs)
+    await answer()
+    expect(joins('live:messages').map((frame) => frame.payload)).toEqual([{ live: 'messages-token-2' }])
+    await vi.advanceTimersByTimeAsync(pollMs)
+    expect(heard.changes).toEqual([stale('messages'), stale('messages')])
+  })
+
+  it('does not try the join again for a resource whose read gives no token', async () => {
+    const { follow, open, token } = setup(() => undefined)
+    follow(['notes'])
+    await open()
+    await vi.advanceTimersByTimeAsync(pollMs * 2)
+    expect(token).toHaveBeenCalledTimes(1)
+  })
+
   it('polls while the changes service is lost, until its next change', async () => {
     const { follow, open, send, heard } = setup()
     follow(['messages'])
